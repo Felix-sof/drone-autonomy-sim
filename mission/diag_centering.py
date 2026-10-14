@@ -15,7 +15,8 @@ cp = c.simGetObjectPose(car).position
 print("araba", car, round(cp.x_val, 2), round(cp.y_val, 2))
 
 for ox, oy in [(0, 0), (2, 0), (0, 2), (-2, -2)]:
-    c.moveToPositionAsync(cp.x_val + ox, cp.y_val + oy, G - 10, 2).join()
+    c.moveToPositionAsync(cp.x_val + ox, cp.y_val + oy, G - 26, 3).join()  # ağaçların üstünden
+    c.moveToZAsync(G - 10, 2).join()
     wait_until_still(c, 0.05)
     d = c.getMultirotorState().kinematics_estimated.position
     cam_info = c.simGetCameraInfo(cam)
@@ -35,6 +36,7 @@ for ox, oy in [(0, 0), (2, 0), (0, 2), (-2, -2)]:
           f" | hesap dx={dx:+.2f} dy={dy:+.2f} | gerçek dx={true_dx:+.2f} dy={true_dy:+.2f}"
           f" | kamera z={cam_info.pose.position.z_val:.2f}")
 
-c.moveToPositionAsync(0, 0, G - 10, 4).join()
+c.moveToZAsync(G - 26, 3).join()  # önce ağaçların üstüne çık
+c.moveToPositionAsync(0, 0, G - 26, 4).join()
 c.landAsync().join()
 c.enableApiControl(False)

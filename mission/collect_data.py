@@ -19,30 +19,51 @@ import fly_mission
 from fly_mission import Recorder, fly_once
 from sim_client import ROOT, airsim, connect, load_mission
 
-AREA = (-25, 25, -5, 25)  # NED x_min, x_max, y_min, y_max (metre)
+FLAT_AREA = (-25, 25, -5, 25)  # düz harita (setup_level.py) için görev alanı
+
+
+def area(scene):
+    return tuple(scene.get("area", FLAT_AREA))
 
 
 def scatter_cars(client, scene, landing, rng):
-    """Arabaları alana rastgele dağıtır: birbirine ve helipad'e çok yakın değil, boyları biraz farklı."""
+    """Arabaları rastgele dağıtır: birbirine ve helipad'e çok yakın değil.
+
+    Orman haritasında (setup_forest.py) sadece açıklıklara, gerçek araba modeli biraz
+    büyütülüp küçültülerek; düz haritada (setup_level.py) kutular alanın her yerine.
+    """
     lx, ly = landing
+    clearings = scene.get("clearings", [])[1:]  # ilki iniş açıklığı
+    a = area(scene)
     placed = []
     for name in scene["cars"]:
         for _ in range(500):
-            x, y = rng.uniform(AREA[0], AREA[1]), rng.uniform(AREA[2], AREA[3])
-            if math.hypot(x - lx, y - ly) > 8 and all(math.hypot(x - px, y - py) > 6 for px, py in placed):
+            if clearings:
+                cx, cy, cr = clearings[rng.integers(len(clearings))]
+                ang, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, max(cr - 5.0, 0.5))
+                x, y = cx + d * math.cos(ang), cy + d * math.sin(ang)
+            else:
+                x, y = rng.uniform(a[0], a[1]), rng.uniform(a[2], a[3])
+            if math.hypot(x - lx, y - ly) > 8 and all(math.hypot(x - px, y - py) > 7 for px, py in placed):
                 break
         placed.append((x, y))
-        length, width, height = rng.uniform(3.8, 5.2), rng.uniform(1.7, 2.0), rng.uniform(1.4, 1.9)
-        client.simSetObjectScale(name, airsim.Vector3r(length, width, height))
-        z = scene["ground_z_ned"] - height / 2
+        if "car_pivot_height_m" in scene:  # gerçek model: oranı koruyarak ölçekle
+            s = rng.uniform(0.9, 1.1)
+            client.simSetObjectScale(name, airsim.Vector3r(s, s, s))
+            z = scene["ground_z_ned"] - scene["car_pivot_height_m"] * s
+        else:  # kutu: boyutlar ayrı ayrı
+            length, width, height = rng.uniform(3.8, 5.2), rng.uniform(1.7, 2.0), rng.uniform(1.4, 1.9)
+            client.simSetObjectScale(name, airsim.Vector3r(length, width, height))
+            z = scene["ground_z_ned"] - height / 2
         pose = airsim.Pose(airsim.Vector3r(x, y, z), euler_to_quaternion(0, 0, rng.uniform(-math.pi, math.pi)))
         if not client.simSetObjectPose(name, pose, True):
-            print(f"  uyarı: {name} taşınamadı (setup_level.py'yi tekrar çalıştır)")
+            print(f"  uyarı: {name} taşınamadı (harita scriptini tekrar çalıştır)")
 
 
-def random_route(rng, n=5):
+def random_route(rng, scene, n=5):
     """Alanın içinde rastgele n nokta; merkez etrafında açıya göre sıralı, böylece rota kendini kesmez."""
-    pts = [(rng.uniform(AREA[0], AREA[1]), rng.uniform(AREA[2], AREA[3])) for _ in range(n)]
+    a = area(scene)
+    pts = [(rng.uniform(a[0], a[1]), rng.uniform(a[2], a[3])) for _ in range(n)]
     cx, cy = np.mean(pts, axis=0)
     return sorted(pts, key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
 
@@ -68,8 +89,10 @@ def main():
             print(f"\n=== Tur {i}/{args.turlar} ===")
             scatter_cars(client, scene, cfg["landing"], rng)
             rec = Recorder()
-            z = -rng.uniform(15, 30)
-            found = fly_once(client, cfg, rec, None, random_route(rng), z, rng)
+            # ormanda ağaçların üstünde kal (en uzun ladin ~17 m)
+            lo = scene.get("cruise_alt_m", 15)
+            z = scene["ground_z_ned"] - rng.uniform(lo, lo + 12)
+            found = fly_once(client, cfg, rec, None, random_route(rng, scene), z, rng)
             total_imgs += rec.count
             print(f"Tur {i}: {rec.count} görüntü, {len(found)} karede araba. Toplam: {total_imgs}")
             if rec.count < 5:

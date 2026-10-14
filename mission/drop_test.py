@@ -94,24 +94,40 @@ def center_over_target(client, cam, model, target_name, alt, timeout=40):
 
 
 def wait_until_rest(client, name, cam, timeout=8):
-    """Paket durana kadar bekler (önizlemede düşüşü gösterir), son konumunu döndürür."""
-    last = None
+    """Paketi izler: ilk çarpma noktasını ve durduğu yeri döndürür (önizlemede düşüşü gösterir).
+
+    Konum sık örneklenir (~50 Hz) ki 10 m'lik ~1.4 s'lik düşüşte çarpma anı kaçmasın;
+    kamera karesi daha seyrek alınır. İlk çarpma: hızla düşerken (>3 m/s) aşağı hızın
+    birden kesildiği an.
+    """
+    last, last_t = None, None
     still_since = None
+    impact = None
+    falling_fast = False
     t0 = time.time()
+    next_frame = 0.0
     while time.time() - t0 < timeout:
-        if fly_mission.SHOW_PREVIEW:
+        now = time.time()
+        if fly_mission.SHOW_PREVIEW and now >= next_frame:
             show(get_rgb(client, cam), [])
+            next_frame = time.time() + 0.15
         p = client.simGetObjectPose(name).position
         cur = np.array([p.x_val, p.y_val, p.z_val])
-        if last is not None and np.linalg.norm(cur - last) < 0.005:
-            still_since = still_since or time.time()
-            if time.time() - still_since > 0.5 and time.time() - t0 > 1.0:
-                break
-        else:
-            still_since = None
-        last = cur
-        time.sleep(0.1)
-    return last
+        if last is not None:
+            vz = (cur[2] - last[2]) / max(now - last_t, 1e-3)  # NED: + aşağı
+            if vz > 3.0:
+                falling_fast = True
+            elif falling_fast and impact is None and vz < 1.0:
+                impact = last  # hızın kesildiği andan hemen önceki konum
+            if np.linalg.norm(cur - last) < 0.003:
+                still_since = still_since or now
+                if now - still_since > 0.5 and now - t0 > 1.0:
+                    break
+            else:
+                still_since = None
+        last, last_t = cur, now
+        time.sleep(0.02)
+    return last, (impact if impact is not None else last)
 
 
 def score(client, car, pkg_pos, car_height):
@@ -123,7 +139,9 @@ def score(client, car, pkg_pos, car_height):
     # araba eksenlerine göre: lx uzunluk boyunca, ly genişlik boyunca
     lx = dx * math.cos(yaw) + dy * math.sin(yaw)
     ly = -dx * math.sin(yaw) + dy * math.cos(yaw)
-    on_roof = pkg_pos[2] < GROUND_Z - sc.z_val * 0.8  # zeminden yüksekte duruyorsa arabanın üstünde
+    # gerçek modelde ölçek ~1 ve yükseklik sahneden; kutuda ölçek doğrudan yükseklik (metre)
+    height = car_height * sc.z_val if sc.z_val < 1.3 else sc.z_val
+    on_roof = pkg_pos[2] < GROUND_Z - height * 0.6  # zeminden yüksekte duruyorsa arabanın üstünde
     return math.hypot(dx, dy), on_roof, (lx, ly)
 
 
@@ -150,10 +168,15 @@ def main():
     cam = cfg["camera"]
     setup_detection(client, cam, cfg["target_mesh_patterns"], cfg["detection_radius_m"])
     results = []
-    alt = args.irtifa - GROUND_Z  # zemin NED'de +GROUND_Z'de; -alt zeminden irtifa kadar yukarısı
+    # zemin NED'de +GROUND_Z'de; -x zeminden o kadar yukarısı. Ormanda hedefe ağaçların
+    # üstünden (seyir) gidilir, açıklığın üstünde dikey alçalıp bırakılır.
+    alt = args.irtifa - GROUND_Z
+    cruise = max(scene.get("cruise_alt_m", 0), args.irtifa) - GROUND_Z
+    target_name = lambda c: None if model else c  # noqa: E731
 
     try:
         client.takeoffAsync().join()
+        client.moveToZAsync(-cruise, 3).join()
         for i in range(1, args.deneme + 1):
             scatter_cars(client, scene, cfg["landing"], rng)
             car = str(rng.choice(scene["cars"]))
@@ -161,11 +184,18 @@ def main():
             ax = cp.x_val + rng.uniform(-GPS_ERROR_M, GPS_ERROR_M)
             ay = cp.y_val + rng.uniform(-GPS_ERROR_M, GPS_ERROR_M)
             print(f"\n=== Deneme {i}/{args.deneme}: hedef {car} ===")
-            client.moveToPositionAsync(ax, ay, -alt, 5).join()
+            t_start = time.time()
+            client.moveToPositionAsync(ax, ay, -cruise, 5).join()
 
-            if not center_over_target(client, cam, model, None if model else car, alt):
+            # önce seyir irtifasında kabaca, alçaldıktan sonra hassas hizalan
+            seen = center_over_target(client, cam, model, target_name(car), cruise)
+            if seen and cruise > alt:
+                client.moveToZAsync(-alt, 2).join()
+                seen = center_over_target(client, cam, model, target_name(car), alt)
+            if not seen:
                 print("  hedef kamerada görülmedi, atlanıyor")
                 results.append({"deneme": i, "sonuc": "gorulmedi"})
+                client.moveToZAsync(-cruise, 3).join()
                 continue
             wait_until_still(client, max_speed=0.05)
 
@@ -178,36 +208,49 @@ def main():
                 airsim.Pose(airsim.Vector3r(d.x_val, d.y_val, d.z_val + 0.7), airsim.Quaternionr()),
                 airsim.Vector3r(*PACKAGE_SIZE), physics_enabled=True)
             print(f"  paket bırakıldı ({args.irtifa:.0f} m)")
-            rest = wait_until_rest(client, pkg, cam)
+            rest, impact = wait_until_rest(client, pkg, cam)
+            # vuruş: ilk temas yerden yüksekte mi (arabaya çarptı) — nişan başarısı
+            hit_dist, _, _ = score(client, car, impact, scene["car_height_m"])
+            hit = impact[2] < GROUND_Z - 0.4
+            # teslimat: paket arabanın üstünde mi kaldı — sekme/kayma dahil
             dist, on_roof, (lx, ly) = score(client, car, rest, scene["car_height_m"])
-            print(f"  merkeze uzaklık: {dist:.2f} m  |  {'ARABANIN ÜSTÜNDE ✔' if on_roof else 'ıska ✘'}"
-                  f"  (boyuna {lx:+.2f} m, enine {ly:+.2f} m)")
-            results.append({"deneme": i, "sonuc": "isabet" if on_roof else "iska",
+            # ANA ÖLÇÜT ilk çarpma noktası; durduğu yer (sekme/kayma) sadece ek bilgi
+            print(f"  İSABET: {'ARABAYA ÇARPTI ✔' if hit else 'ıska ✘'} (ilk temas merkeze {hit_dist:.2f} m)"
+                  f"  |  ek: {'üstünde kaldı' if on_roof else 'sekip düştü'}"
+                  f" (durduğu yer merkeze {dist:.2f} m)")
+            results.append({"deneme": i, "sonuc": "isabet" if hit else "iska", "ustunde_kaldi": on_roof,
+                            "vurus": hit, "vurus_merkeze_m": round(hit_dist, 3),
                             "merkeze_uzaklik_m": round(dist, 3), "boyuna_m": round(lx, 3),
-                            "enine_m": round(ly, 3)})
+                            "enine_m": round(ly, 3), "sure_s": round(time.time() - t_start, 1)})
             time.sleep(1.5)
             client.simDestroyObject(pkg)
             hide_preview()  # sonraki uçuş boyunca pencere donmasın
+            client.moveToZAsync(-cruise, 3).join()  # ağaçların üstüne geri çık
 
         lx, ly = cfg["landing"]
-        client.moveToPositionAsync(lx, ly, -alt, 5).join()
+        client.moveToPositionAsync(lx, ly, -cruise, 5).join()
         safe_land(client)
     finally:
         client.enableApiControl(False)
 
     measured = [r for r in results if "merkeze_uzaklik_m" in r]
     hits = sum(r["sonuc"] == "isabet" for r in results)
+    stayed = sum(bool(r.get("ustunde_kaldi")) for r in results)
     print(f"\n=== SONUÇ ({args.irtifa:.0f} m, {'YOLO' if model else 'Unreal etiketi'}) ===")
-    print(f"İsabet: {hits}/{len(results)}")
+    print(f"İsabet (ilk temas arabada): {hits}/{len(results)}")
+    print(f"Ek: paket arabanın üstünde kaldı: {stayed}/{len(results)}")
     if measured:
-        d = [r["merkeze_uzaklik_m"] for r in measured]
-        print(f"Merkeze uzaklık: ortalama {np.mean(d):.2f} m, en kötü {max(d):.2f} m")
+        d = [r["vurus_merkeze_m"] for r in measured]
+        print(f"İlk temasın merkeze uzaklığı: ortalama {np.mean(d):.2f} m, en kötü {max(d):.2f} m")
+        print(f"Deneme başına süre (uçuş+hizalama+bırakma): "
+              f"ortalama {np.mean([r['sure_s'] for r in measured]):.0f} s")
 
     out = ROOT / "results"
     out.mkdir(exist_ok=True)
     f = out / f"drop_{datetime.now():%Y%m%d_%H%M%S}_{args.irtifa:.0f}m.csv"
     with f.open("w", newline="", encoding="utf-8") as fh:
-        wr = csv.DictWriter(fh, fieldnames=["deneme", "sonuc", "merkeze_uzaklik_m", "boyuna_m", "enine_m"])
+        wr = csv.DictWriter(fh, fieldnames=["deneme", "sonuc", "vurus", "vurus_merkeze_m", "ustunde_kaldi",
+                                            "merkeze_uzaklik_m", "boyuna_m", "enine_m", "sure_s"])
         wr.writeheader()
         wr.writerows(results)
     print(f"Kaydedildi: {f}")

@@ -64,11 +64,15 @@ def safe_land(client):
 
 
 def get_rgb(client, camera):
-    """Kameradan tek bir RGB kare alır, (H, W, 3) BGR numpy dizisi döndürür."""
+    """Kameradan tek bir kare alır, OpenCV/YOLO'nun beklediği (H, W, 3) BGR dizisi döndürür.
+
+    Cosys-AirSim sıkıştırılmamış görüntüyü RGB sırasıyla veriyor (orijinal AirSim BGR'di).
+    Çevrilmezse kırmızı-mavi yer değiştirir: orman toprağı mavi, kırmızı araba mavi görünür.
+    """
     req = airsim.ImageRequest(camera, airsim.ImageType.Scene, False, False)
     resp = client.simGetImages([req])[0]
     img = np.frombuffer(resp.image_data_uint8, dtype=np.uint8)
-    return img.reshape(resp.height, resp.width, -1)[:, :, :3].copy()
+    return img.reshape(resp.height, resp.width, -1)[:, :, 2::-1].copy()  # RGB(A) -> BGR
 
 
 def setup_detection(client, camera, patterns, radius_m):

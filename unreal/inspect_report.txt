@@ -1,0 +1,213 @@
+=== ARABA ===
+/Game/Fab/Cars_for_Arcade_Demolition_Racing_Games/source/StaticMeshes/source.source
+   boyut (m): 1.98 x 5.24 x 1.47 | LOD: 1 | malzeme yuvası: 9 ['Body', 'Screens', 'Glass', 'Wheels', 'Red_light', 'Grill', 'Light', 'Carbon', 'Tyre'] | üçgen (LOD0): 15214
+
+=== AĞAÇLAR (low + small) ===
+/Game/PN_interactiveSpruceForest/Meshes/full/low/spruce_full_01_low.spruce_full_01_low
+   boyut (m): 4.85 x 5.30 x 10.64 | LOD: 5 | malzeme yuvası: 4 ['19 - Default', '21 - Default', '20 - Default', '01 - Default'] | üçgen (LOD0): 7373
+/Game/PN_interactiveSpruceForest/Meshes/full/low/spruce_full_02_low.spruce_full_02_low
+   boyut (m): 6.99 x 6.76 x 11.80 | LOD: 5 | malzeme yuvası: 4 ['19 - Default', '21 - Default', '20 - Default', '01 - Default'] | üçgen (LOD0): 13068
+/Game/PN_interactiveSpruceForest/Meshes/full/low/spruce_full_03_low.spruce_full_03_low
+   boyut (m): 6.47 x 7.36 x 12.53 | LOD: 5 | malzeme yuvası: 4 ['19 - Default', '21 - Default', '20 - Default', '01 - Default'] | üçgen (LOD0): 12899
+/Game/PN_interactiveSpruceForest/Meshes/half/low/spruce_half_01_low.spruce_half_01_low
+   boyut (m): 4.21 x 3.84 x 16.95 | LOD: 5 | malzeme yuvası: 4 ['19 - Default', '20 - Default', '21 - Default', '01 - Default'] | üçgen (LOD0): 16179
+/Game/PN_interactiveSpruceForest/Meshes/half/low/spruce_half_02_low.spruce_half_02_low
+   boyut (m): 4.26 x 4.43 x 15.08 | LOD: 5 | malzeme yuvası: 4 ['19 - Default', '20 - Default', '21 - Default', '01 - Default'] | üçgen (LOD0): 14091
+/Game/PN_interactiveSpruceForest/Meshes/half/low/spruce_half_03_low.spruce_half_03_low
+   boyut (m): 4.69 x 4.53 x 16.82 | LOD: 5 | malzeme yuvası: 4 ['19 - Default', '20 - Default', '21 - Default', '01 - Default'] | üçgen (LOD0): 23392
+/Game/PN_interactiveSpruceForest/Meshes/half/low/spruce_half_04_low.spruce_half_04_low
+   boyut (m): 4.60 x 4.52 x 16.02 | LOD: 5 | malzeme yuvası: 4 ['19 - Default', '20 - Default', '21 - Default', '01 - Default'] | üçgen (LOD0): 19680
+/Game/PN_interactiveSpruceForest/Meshes/small/spruce_small_01.spruce_small_01
+   boyut (m): 0.47 x 0.52 x 0.56 | LOD: 4 | malzeme yuvası: 2 ['19 - Default', '21 - Default'] | üçgen (LOD0): 64
+/Game/PN_interactiveSpruceForest/Meshes/small/spruce_small_02.spruce_small_02
+   boyut (m): 1.01 x 0.99 x 1.21 | LOD: 4 | malzeme yuvası: 2 ['19 - Default', '21 - Default'] | üçgen (LOD0): 133
+/Game/PN_interactiveSpruceForest/Meshes/small/spruce_small_03.spruce_small_03
+   boyut (m): 1.04 x 1.24 x 1.78 | LOD: 4 | malzeme yuvası: 2 ['19 - Default', '21 - Default'] | üçgen (LOD0): 144
+/Game/PN_interactiveSpruceForest/Meshes/small/spruce_small_04.spruce_small_04
+   boyut (m): 1.72 x 1.67 x 2.56 | LOD: 4 | malzeme yuvası: 2 ['19 - Default', '21 - Default'] | üçgen (LOD0): 206
+/Game/PN_interactiveSpruceForest/Meshes/small/spruce_small_05.spruce_small_05
+   boyut (m): 3.83 x 4.27 x 4.53 | LOD: 4 | malzeme yuvası: 3 ['19 - Default', '21 - Default', '20 - Default'] | üçgen (LOD0): 2604
+/Game/PN_interactiveSpruceForest/Meshes/small/spruce_small_06.spruce_small_06
+   boyut (m): 4.18 x 4.62 x 6.35 | LOD: 4 | malzeme yuvası: 3 ['19 - Default', '21 - Default', '20 - Default'] | üçgen (LOD0): 6408
+/Game/PN_interactiveSpruceForest/Meshes/small/spruce_small_07.spruce_small_07
+   boyut (m): 5.44 x 5.07 x 7.74 | LOD: 4 | malzeme yuvası: 3 ['19 - Default', '21 - Default', '20 - Default'] | üçgen (LOD0): 6447
+
+=== ZEMİN MALZEMELERİ ===
+   /Game/PN_interactiveSpruceForest/Materials/MaterialInstances/ground/MI_GroundSummer.MI_GroundSummer
+   /Game/PN_interactiveSpruceForest/ExampleContent/Interaction_Ball.Interaction_Ball
+   /Game/PN_interactiveSpruceForest/ExampleContent/Summer/MI_GroundSummer.MI_GroundSummer
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_01_branch.spruce_full_01_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_01_leaf.spruce_full_01_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_01_MA.spruce_full_01_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_01_trunk.spruce_full_01_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_02_branch.spruce_full_02_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_02_leaf.spruce_full_02_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_02_MA.spruce_full_02_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_02_trunk.spruce_full_02_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_03_branch.spruce_full_03_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_03_leaf.spruce_full_03_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_03_MA.spruce_full_03_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/high/spruce_full_03_trunk.spruce_full_03_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_01_low_branch.spruce_full_01_low_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_01_low_leaf.spruce_full_01_low_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_01_low_MA.spruce_full_01_low_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_01_low_trunk.spruce_full_01_low_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_02_low_branch.spruce_full_02_low_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_02_low_leaf.spruce_full_02_low_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_02_low_MA.spruce_full_02_low_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_02_low_trunk.spruce_full_02_low_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_03_low_branch.spruce_full_03_low_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_03_low_leaf.spruce_full_03_low_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_03_low_MA.spruce_full_03_low_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/full/low/spruce_full_03_low_trunk.spruce_full_03_low_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_01_branch.spruce_half_01_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_01_leaf.spruce_half_01_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_01_MA.spruce_half_01_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_01_trunk.spruce_half_01_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_02_branch.spruce_half_02_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_02_leaf.spruce_half_02_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_02_MA.spruce_half_02_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_02_trunk.spruce_half_02_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_03_branch.spruce_half_03_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_03_leaf.spruce_half_03_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_03_MA.spruce_half_03_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_03_trunk.spruce_half_03_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_04_branch.spruce_half_04_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_04_leaf.spruce_half_04_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_04_MA.spruce_half_04_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/high/spruce_half_04_trunk.spruce_half_04_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_01_branch.spruce_half_01_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_01_leaf.spruce_half_01_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_01_MA.spruce_half_01_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_01_trunk.spruce_half_01_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_02_branch.spruce_half_02_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_02_leaf.spruce_half_02_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_02_MA.spruce_half_02_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_02_trunk.spruce_half_02_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_03_branch.spruce_half_03_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_03_leaf.spruce_half_03_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_03_MA.spruce_half_03_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_03_trunk.spruce_half_03_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_04_branch.spruce_half_04_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_04_leaf.spruce_half_04_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_04_MA.spruce_half_04_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/half/low/spruce_half_04_trunk.spruce_half_04_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/high/full_01_imposter.full_01_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/high/full_02_imposter.full_02_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/high/full_03_imposter.full_03_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/high/half_01_imposter.half_01_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/high/half_02_imposter.half_02_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/high/half_03_imposter.half_03_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/high/half_04_imposter.half_04_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/low/full_01_imposter.full_01_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/low/full_02_imposter.full_02_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/low/full_03_imposter.full_03_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/low/half_01_imposter.half_01_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/low/half_02_imposter.half_02_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/low/half_03_imposter.half_03_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/imposter/low/half_04_imposter.half_04_imposter
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_01_leaf.spruce_small_01_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_01_MA.spruce_small_01_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_01_trunk.spruce_small_01_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_02_leaf.spruce_small_02_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_02_MA.spruce_small_02_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_02_trunk.spruce_small_02_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_03_leaf.spruce_small_03_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_03_MA.spruce_small_03_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_03_trunk.spruce_small_03_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_04_leaf.spruce_small_04_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_04_MA.spruce_small_04_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_04_trunk.spruce_small_04_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_05_branch.spruce_small_05_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_05_leaf.spruce_small_05_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_05_MA.spruce_small_05_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_05_trunk.spruce_small_05_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_06_branch.spruce_small_06_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_06_leaf.spruce_small_06_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_06_MA.spruce_small_06_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_06_trunk.spruce_small_06_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_07_branch.spruce_small_07_branch
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_07_leaf.spruce_small_07_leaf
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_07_MA.spruce_small_07_MA
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Materials/small/spruce_small_07_trunk.spruce_small_07_trunk
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/full/high/winter_spruce_full_01.winter_spruce_full_01
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/full/high/winter_spruce_full_02.winter_spruce_full_02
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/full/high/winter_spruce_full_03.winter_spruce_full_03
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/full/low/winter_spruce_full_01_low.winter_spruce_full_01_low
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/full/low/winter_spruce_full_02_low.winter_spruce_full_02_low
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/full/low/winter_spruce_full_03_low.winter_spruce_full_03_low
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/half/high/winter_spruce_half_01.winter_spruce_half_01
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/half/high/winter_spruce_half_02.winter_spruce_half_02
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/half/high/winter_spruce_half_03.winter_spruce_half_03
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/half/high/winter_spruce_half_04.winter_spruce_half_04
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/half/low/winter_spruce_half_01_low.winter_spruce_half_01_low
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/half/low/winter_spruce_half_02_low.winter_spruce_half_02_low
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/half/low/winter_spruce_half_03_low.winter_spruce_half_03_low
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/half/low/winter_spruce_half_04_low.winter_spruce_half_04_low
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/small/winter_spruce_small_01.winter_spruce_small_01
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/small/winter_spruce_small_02.winter_spruce_small_02
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/small/winter_spruce_small_03.winter_spruce_small_03
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/small/winter_spruce_small_04.winter_spruce_small_04
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/small/winter_spruce_small_05.winter_spruce_small_05
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/small/winter_spruce_small_06.winter_spruce_small_06
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/Meshes/small/winter_spruce_small_07.winter_spruce_small_07
+   /Game/PN_interactiveSpruceForest/ExampleContent/Winter/MI_GroundWinter.MI_GroundWinter
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Cliffs/MI_Cliff_01.MI_Cliff_01
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Cliffs/MI_Cliff_02.MI_Cliff_02
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Cliffs/MI_Cliff_03.MI_Cliff_03
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Cliffs/MI_Cliff_04.MI_Cliff_04
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Cliffs/MI_Cliff_05.MI_Cliff_05
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Landscape_Rivers/MI_Terrain_River_01.MI_Terrain_River_01
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Landscape_Rivers/MI_Terrain_River_02.MI_Terrain_River_02
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Landscape_Rivers/MI_Terrain_River_03.MI_Terrain_River_03
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Landscape_Rivers/MI_Terrain_River_04.MI_Terrain_River_04
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/Landscape_Rivers/MI_Terrain_River_05.MI_Terrain_River_05
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_01.MI_Terrain_Mesh_01
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_02.MI_Terrain_Mesh_02
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_03.MI_Terrain_Mesh_03
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_04.MI_Terrain_Mesh_04
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_05.MI_Terrain_Mesh_05
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_06.MI_Terrain_Mesh_06
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_07.MI_Terrain_Mesh_07
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_08.MI_Terrain_Mesh_08
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_09.MI_Terrain_Mesh_09
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_10.MI_Terrain_Mesh_10
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_11.MI_Terrain_Mesh_11
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_12.MI_Terrain_Mesh_12
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_13.MI_Terrain_Mesh_13
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_14.MI_Terrain_Mesh_14
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Terrain_Mesh_15.MI_Terrain_Mesh_15
+   /Game/MOUT_Fabrication/Materials/Terrain/Material_Instances/MI_Water.MI_Water
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/DesertBush/MI_DesertTree_Bark_01.MI_DesertTree_Bark_01
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/DesertBush/MI_DesertTree_Leaves_01.MI_DesertTree_Leaves_01
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/DesertBush/MI_DesertTree_Leaves_02.MI_DesertTree_Leaves_02
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/DesertBush/MI_DesertTree_Leaves_03.MI_DesertTree_Leaves_03
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/DesertShrub/MI_DesertTree_Bark_01.MI_DesertTree_Bark_01
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/DesertShrub/MI_DesertTree_Leaves_01.MI_DesertTree_Leaves_01
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/DesertShrub/MI_DesertTree_Leaves_02.MI_DesertTree_Leaves_02
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/DesertTree/MI_DesertTree_Bark_01.MI_DesertTree_Bark_01
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/DesertTree/MI_DesertTree_Leaves_01.MI_DesertTree_Leaves_01
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/PlantTrees/MI_PalmTree_Bark_01.MI_PalmTree_Bark_01
+   /Game/MOUT_Fabrication/Materials/Foliage/Material_Instances/PlantTrees/MI_PalmTree_Leaves_01.MI_PalmTree_Leaves_01
+
+=== MOUT: araç/doğa modelleri (ad eşleşmesi) ===
+   /Game/MOUT_Fabrication/Meshes/Foliage/DesertTree/SM_Desert_Tree_01.SM_Desert_Tree_01
+   /Game/MOUT_Fabrication/Meshes/Foliage/DesertTree/SM_Desert_Tree_02.SM_Desert_Tree_02
+   /Game/MOUT_Fabrication/Meshes/Foliage/DesertTree/SM_Desert_Tree_03.SM_Desert_Tree_03
+   /Game/MOUT_Fabrication/Meshes/Foliage/DesertTree/SM_Desert_Tree_04.SM_Desert_Tree_04
+   /Game/MOUT_Fabrication/Meshes/Foliage/DesertTree/SM_Desert_Tree_05.SM_Desert_Tree_05
+   /Game/MOUT_Fabrication/Meshes/Foliage/DesertTree/SM_Desert_Tree_06.SM_Desert_Tree_06
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_01.SM_PalmTree_01
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_02.SM_PalmTree_02
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_03.SM_PalmTree_03
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_04.SM_PalmTree_04
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_05.SM_PalmTree_05
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_06.SM_PalmTree_06
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_07.SM_PalmTree_07
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_08.SM_PalmTree_08
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_09.SM_PalmTree_09
+   /Game/MOUT_Fabrication/Meshes/Foliage/PalmTrees/SM_PalmTree_10.SM_PalmTree_10
+   /Game/MOUT_Fabrication/Meshes/RockSet/SM_Rock_01.SM_Rock_01
+   /Game/MOUT_Fabrication/Meshes/RockSet/SM_Rock_02.SM_Rock_02
+   /Game/MOUT_Fabrication/Meshes/RockSet/SM_Rock_03.SM_Rock_03
+   /Game/MOUT_Fabrication/Meshes/RockSet/SM_Rock_04.SM_Rock_04

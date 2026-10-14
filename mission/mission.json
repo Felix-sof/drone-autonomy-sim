@@ -1,6 +1,6 @@
 {
   "_not": "Koordinatlar NED, metre, PlayerStart'a göre. z negatif = yukarı (z=-20 -> 20 m irtifa).",
-  "altitude": -20,
+  "altitude": -27,
   "speed": 5,
   "camera": "bottom_cam",
   "waypoints": [

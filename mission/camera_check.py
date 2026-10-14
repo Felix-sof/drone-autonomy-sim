@@ -8,8 +8,8 @@ from sim_client import connect, get_rgb, safe_land, wait_until_still
 client = connect()
 client.takeoffAsync().join()
 frames = []
-for x, y in [(5, 10), (-5, 15)]:
-    client.moveToPositionAsync(x, y, -20, 4).join()
+for x, y in [(4, 4), (-4, 6)]:  # iniş açıklığının içinde kal
+    client.moveToPositionAsync(x, y, -28, 4).join()  # ağaçların üstü
     wait_until_still(client)
     frames.append(get_rgb(client, "bottom_cam"))
 safe_land(client)
