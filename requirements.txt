@@ -1,0 +1,5 @@
+numpy
+opencv-python
+msgpack-rpc-python
+ultralytics
+# Simülatör istemcisi: Cosys-AirSim reposundaki PythonClient klasöründen kurulur (README'ye bak)

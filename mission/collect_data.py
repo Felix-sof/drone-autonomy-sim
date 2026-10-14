@@ -1,0 +1,86 @@
+"""Otomatik veri toplama: her turda arabaları rastgele dağıt, rastgele bir rota uç, helipad'e in, tekrarla.
+
+Her tur farklı bir sahne demek: arabaların yeri, yönü, boyu, uçuş rotası, irtifa,
+saat ve hava durumu değişir. Model tek bir sahneyi ezberlemek yerine genelleşmeyi öğrenir.
+
+Kullanım:
+  python mission/collect_data.py              # 10 tur
+  python mission/collect_data.py --turlar 3
+Durdurmak için Ctrl+C (o ana kadar kaydedilenler kalır).
+"""
+import argparse
+import json
+import math
+
+import numpy as np
+from cosysairsim.utils import euler_to_quaternion
+
+import fly_mission
+from fly_mission import Recorder, fly_once
+from sim_client import ROOT, airsim, connect, load_mission
+
+AREA = (-25, 25, -5, 25)  # NED x_min, x_max, y_min, y_max (metre)
+
+
+def scatter_cars(client, scene, landing, rng):
+    """Arabaları alana rastgele dağıtır: birbirine ve helipad'e çok yakın değil, boyları biraz farklı."""
+    lx, ly = landing
+    placed = []
+    for name in scene["cars"]:
+        for _ in range(500):
+            x, y = rng.uniform(AREA[0], AREA[1]), rng.uniform(AREA[2], AREA[3])
+            if math.hypot(x - lx, y - ly) > 8 and all(math.hypot(x - px, y - py) > 6 for px, py in placed):
+                break
+        placed.append((x, y))
+        length, width, height = rng.uniform(3.8, 5.2), rng.uniform(1.7, 2.0), rng.uniform(1.4, 1.9)
+        client.simSetObjectScale(name, airsim.Vector3r(length, width, height))
+        z = scene["ground_z_ned"] - height / 2
+        pose = airsim.Pose(airsim.Vector3r(x, y, z), euler_to_quaternion(0, 0, rng.uniform(-math.pi, math.pi)))
+        if not client.simSetObjectPose(name, pose, True):
+            print(f"  uyarı: {name} taşınamadı (setup_level.py'yi tekrar çalıştır)")
+
+
+def random_route(rng, n=5):
+    """Alanın içinde rastgele n nokta; merkez etrafında açıya göre sıralı, böylece rota kendini kesmez."""
+    pts = [(rng.uniform(AREA[0], AREA[1]), rng.uniform(AREA[2], AREA[3])) for _ in range(n)]
+    cx, cy = np.mean(pts, axis=0)
+    return sorted(pts, key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--turlar", type=int, default=10)
+    ap.add_argument("--goster", action="store_true", help="Küçük kamera önizleme penceresi")
+    args = ap.parse_args()
+    fly_mission.SHOW_PREVIEW = args.goster
+
+    cfg = load_mission()
+    scene_file = ROOT / "mission" / "scene_objects.json"
+    if not scene_file.exists():
+        raise SystemExit("mission/scene_objects.json yok: önce Unreal'de setup_level.py'yi çalıştır.")
+    scene = json.loads(scene_file.read_text(encoding="utf-8"))
+
+    client = connect()
+    rng = np.random.default_rng()
+    total_imgs = 0
+    try:
+        for i in range(1, args.turlar + 1):
+            print(f"\n=== Tur {i}/{args.turlar} ===")
+            scatter_cars(client, scene, cfg["landing"], rng)
+            rec = Recorder()
+            z = -rng.uniform(15, 30)
+            found = fly_once(client, cfg, rec, None, random_route(rng), z, rng)
+            total_imgs += rec.count
+            print(f"Tur {i}: {rec.count} görüntü, {len(found)} karede araba. Toplam: {total_imgs}")
+            if rec.count < 5:
+                print("Bu turda neredeyse hiç kare kaydedilmedi: kamera donmuş/siyah olabilir. Duruyorum.")
+                break
+    except KeyboardInterrupt:
+        print("\nDurduruldu.")
+    finally:
+        client.enableApiControl(False)
+    print(f"\nToplam {total_imgs} görüntü kaydedildi -> dataset/raw/")
+
+
+if __name__ == "__main__":
+    main()

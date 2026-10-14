@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+
+# Simülasyondan toplanan veri ve eğitim çıktıları (büyük, yeniden üretilebilir)
+dataset/
+runs/
+*.pt
+
+# Unreal'deki setup_level.py her çalıştığında yeniden yazılır
+mission/scene_objects.json
