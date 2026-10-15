@@ -8,8 +8,12 @@ hedefin üstüne hizalanıp kargo paketi bırakır ve helipad'e hassas iniş yap
 
 | Deney | Sonuç |
 |---|---|
-| YOLO11n araba tespiti (201 sim görüntüsü, 798 kutu) | mAP50 0.83, precision 0.79, recall 0.80, 2 ms/kare (RTX 4060 Laptop) |
-| Havada durarak paket bırakma, 10 m, kusursuz tespit | **5/5 isabet**, hizalama ~3 cm, paketin merkeze uzaklığı ort. 0.52 m |
+| YOLO11n araba tespiti (düz harita, kutu arabalar, 201 görüntü) | mAP50 0.83 — *eski: ters renk kanallarıyla eğitildi, orman için yeniden eğitilecek* |
+| Ormanda paket bırakma, **10 m** (açıklığa alçalarak), kusursuz tespit, 10 deneme | **10/10 isabet**, ilk temas merkeze ort. 3 cm, deneme başına 64 s, 7/10 üstünde kaldı |
+| Ormanda paket bırakma, **25 m** (alçalmadan), kusursuz tespit, 10 deneme | **10/10 isabet**, ilk temas merkeze ort. 3 cm, deneme başına **49 s**, 2/10 üstünde kaldı |
+
+İsabet = paketin **ilk temas** noktası arabada mı. Kavisli tavandan sekme ayrı ("üstünde kaldı") ölçülür.
+Yüksekten bırakmak nişanı bozmadı ama deneme başına %23 zaman kazandırdı; sert çarpma sekmeyi artırıyor.
 
 ## Klasörler
 
