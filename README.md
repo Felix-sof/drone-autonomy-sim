@@ -115,6 +115,13 @@ açıp testleri yapar. `C:/UE/flags/auto` dosyası varken `Content/Python/init_u
 editör açılışında `unreal/auto_editor.py`'yi devreye sokar; iş bitince bu dosya silinir.
 Diğer bayraklar: `setup` = haritayı yeniden kur, `play` = Play'i başlat, `quit` = editörü kapat.
 
+## Testler (simülatörsüz)
+
+```
+python -m pytest tests -q      # 24 test: geometri, güvenlik (geofence/pil/süre), kapalı döngü hizalama,
+                               # başka arabaya sıçramama, SAR güvenli mesafe — sahte drone ile
+```
+
 ## Bilinen tuzaklar (UE 5.8 + Cosys-AirSim 3.5)
 
 - AirSim kamerası **siyah** çeker: Unreal Orta kalitede (scalability) açılırsa, Lumen ya da

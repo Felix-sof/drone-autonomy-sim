@@ -21,7 +21,7 @@ def run(args):
     model.train(
         data=args.data,
         epochs=args.epochs,
-        imgsz=960,    # yukarıdan bakınca arabalar küçük kalıyor, çözünürlüğü yüksek tut
+        imgsz=args.imgsz,   # yukarıdan bakınca nesneler küçük; kişiler için 1280
         batch=args.batch,
         workers=4,
         project=RUNS,
@@ -38,6 +38,7 @@ if __name__ == "__main__":  # Windows'ta veri yükleyici işçileri için gerekl
     ap.add_argument("--epochs", type=int, default=60)
     ap.add_argument("--name", default="car")
     ap.add_argument("--batch", type=int, default=8)
+    ap.add_argument("--imgsz", type=int, default=960)
     ap.add_argument("--data", default=DATA, help="ör. C:/UE/mixed/data.yaml (simülasyon + VisDrone)")
     ap.add_argument("--no-plots", action="store_true", help="Eğitim grafiklerini çizme")
     args = ap.parse_args()

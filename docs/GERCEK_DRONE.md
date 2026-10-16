@@ -76,3 +76,19 @@ Kamera kalibrasyonu: OpenCV satranç tahtası kalibrasyonuyla odak uzaklığı v
 - Uçuş alanında insan olmasın; hedef olarak sadece kendi aracın ya da yere serilmiş bir işaret.
 - Bir gözlemci + kumandası elinde bir pilot olmadan otonom görev başlatma.
 - `run_real.py mission` açık onay (`--onay`) olmadan çalışmaz.
+
+## 6. Arama-kurtarma (SAR) için ek güvenlik kuralları
+
+Gerçek kişilerin bulunduğu bir ortamda (`run_autonomy.py --mod sar`, `mission/sar.py`):
+
+- **Paket asla kişinin üstüne bırakılmaz.** Kod, bırakma noktasını kişiden en az `SAFE_MIN_M`
+  (5 m) uzakta, diğer kişi/araçlardan uzak ve görüntüde açık zemin görünen bir yerden seçer;
+  bırakmadan hemen önce altını yeniden kontrol eder, kişi yaklaşmışsa bırakmaz.
+- Tespit modeli kişileri **kaçırabilir** (küçük, ağaç altında, sıra dışı duruş). Bu yüzden
+  "altında kimse görünmüyor" kesinlik değildir: gerçek uçuşta bırakmadan önce **pilot onayı**
+  (canlı görüntüyle) zorunlu tutulmalı; otomatik bırakma sadece boş test alanında denenmeli.
+- Paket hafif, yumuşak (köpük/kumaş) ya da paraşütlü olmalı; bırakma irtifası mevzuatın ve
+  güvenliğin izin verdiği en düşük değer olmalı (simülasyondaki 25 m ağaç tepeleri yüzünden).
+- Kişinin konumu ve görüntüsü kişisel veridir: kayıtları güvenli sakla, görev bitince paylaşma.
+- Gerçek bir arama-kurtarma operasyonunda bu sistem yetkili ekiplerin koordinasyonunda,
+  onların kurallarına göre kullanılmalıdır; tek başına bir kurtarma aracı değildir.
