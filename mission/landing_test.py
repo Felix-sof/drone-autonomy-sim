@@ -17,6 +17,10 @@ n = int(sys.argv[1]) if len(sys.argv) > 1 else 5
 alt = float(sys.argv[2]) if len(sys.argv) > 2 else 25.0
 fly_mission.SHOW_PREVIEW = "--goster" in sys.argv
 cfg = load_mission()
+import perception  # noqa: E402
+perception.CAMERA_STABILIZED = cfg.get("camera_gimbal", False)
+perception.CAMERA_YAW_LOCK = (None if cfg.get("camera_yaw_lock_deg") is None
+                              else __import__("math").radians(cfg["camera_yaw_lock_deg"]))
 scene = json.loads((ROOT / "mission" / "scene_objects.json").read_text(encoding="utf-8"))
 G = scene["ground_z_ned"]
 rng = np.random.default_rng()

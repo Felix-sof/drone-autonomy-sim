@@ -49,6 +49,8 @@ def marker_offset(img, marker, roll=0.0, pitch=0.0):
 
     roll/pitch verilirse kamera ışını yatay düzleme döndürülür (eğim telafisi).
     """
+    import perception
+    roll, pitch, _ = perception.camera_angles(roll, pitch, 0.0)
     h, w = img.shape[:2]
     (cx, cy), side, _ = marker
     f = (w / 2) / math.tan(math.radians(HFOV_DEG / 2))
@@ -79,6 +81,7 @@ def aruco_land_vehicle(vehicle, grab, timeout=150, verbose=True):
     """
     t0 = time.time()
     lost, last_h, seen = 0, None, False
+    vn_f = ve_f = 0.0  # yumuşatılmış komut
     while time.time() - t0 < timeout:
         img = grab()
         roll, pitch, yaw = vehicle.attitude()   # kareyle aynı ana yakın
@@ -94,6 +97,8 @@ def aruco_land_vehicle(vehicle, grab, timeout=150, verbose=True):
             continue
         lost, seen = 0, True
         fwd, right, height = marker_offset(img, m, roll, pitch)
+        import perception
+        yaw = perception.camera_angles(roll, pitch, yaw)[2]   # görüntü ekseninin dünyadaki yönü
         last_h = height
         err = math.hypot(fwd, right)
         fly_mission.show(draw(img, m, f"yukseklik {height:.1f} m  sapma {err:.2f} m"), [])
@@ -104,8 +109,9 @@ def aruco_land_vehicle(vehicle, grab, timeout=150, verbose=True):
         e = fwd * math.sin(yaw) + right * math.cos(yaw)
         sp = min(MAX_SPEED, GAIN * err)
         vn, ve = (n / err * sp, e / err * sp) if err > 1e-6 else (0.0, 0.0)
+        vn_f, ve_f = 0.5 * vn_f + 0.5 * vn, 0.5 * ve_f + 0.5 * ve   # ani yön değişimini yumuşat
         vd = min(1.5, 0.2 * height) if err < max(0.3, 0.04 * height) else 0.0   # ortalandıkça alçal
-        vehicle.velocity_ned(vn, ve, vd)
+        vehicle.velocity_ned(vn_f, ve_f, vd)
         time.sleep(0.15)
     fly_mission.hide_preview()
     if verbose:

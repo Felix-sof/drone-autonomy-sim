@@ -7,6 +7,25 @@ import math
 
 import numpy as np
 
+# Kamera stabilizasyonlu gimbal'da mı? True: kamera eğilmez, roll/pitch telafisi yapılmaz.
+# False: kamera gövdeye sabit, ışın drone'un roll/pitch'iyle yataya döndürülür.
+# Telemetri (PX4/MAVLink) ile kamera karesi farklı anlarda geldiğinde gövdeye sabit kamerada
+# telafi hatası 25 m'de ±5 m'ye çıktı (PX4 SITL); gerçek sistemde gimbal önerilir.
+CAMERA_STABILIZED = False
+# Gimbal yaw'ı dünyaya kilitliyse (radyan; 0 = görüntünün üstü kuzey). None: drone'un yaw'ını izler.
+# Simülasyonda yaw'ı serbest bırakınca dike yakın açıda Unreal gimbal'ı yaw'ı kararlı tutamadı
+# (görüntü kendi kendine döndü); kuzeye kilitlemek bunu çözdü. Gerçek gimbal'larda "yaw lock" modu.
+CAMERA_YAW_LOCK = None
+
+
+def camera_angles(roll, pitch, yaw):
+    """Kameranın gerçek açıları: gimbal varsa roll/pitch sıfır, yaw kilitliyse kilit açısı."""
+    if CAMERA_STABILIZED:
+        roll = pitch = 0.0
+        if CAMERA_YAW_LOCK is not None:
+            yaw = CAMERA_YAW_LOCK
+    return roll, pitch, yaw
+
 
 def pixel_ray_level(shape, px, py, roll, pitch, hfov_deg=90.0):
     """Pikselden çıkan kamera ışını, yaw'sız yatay çerçevede (ileri, sağ, aşağı)."""
@@ -25,6 +44,7 @@ def pixel_to_ground(shape, px, py, height, roll, pitch, yaw, hfov_deg=90.0):
     height: kameranın zeminden yüksekliği. Eğim (roll/pitch) telafi edilir: 25 m'de 10°'lik
     eğim telafi edilmezse ~4.5 m hata demek.
     """
+    roll, pitch, yaw = camera_angles(roll, pitch, yaw)
     ray = pixel_ray_level(shape, px, py, roll, pitch, hfov_deg)
     if ray[2] <= 1e-3:
         return None  # ufka bakan ışın

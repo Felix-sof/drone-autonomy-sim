@@ -22,7 +22,7 @@ SEARCH_CONF = 0.5     # aramada "araba var" demek için gereken güven
 TRACK_CONF = 0.3      # kilitlendikten sonra takipte yeterli güven
 NEW_TARGET_M = 8.0    # daha önce gidilen/bırakılan bir yere bu kadar yakın tespitler yok sayılır
 MAX_APPROACHES = 12   # güvenlik: bir görevde en fazla bu kadar hedefe yaklaşılır
-ALIGN_TOL_M = 0.15    # hizalama toleransı (yerde, metre)
+ALIGN_TOL_M = 0.3     # hizalama toleransı (yerde, metre); PX4 tepki gecikmesiyle ±0.4 m salınım var, araba 5x2 m
 MAX_MISSES = 10       # takipte hedef bu kadar ardışık karede görünmezse vazgeç
 FENCE_MARGIN_M = 15   # görev alanının bu kadar dışına çıkılırsa görev iptal (geofence)
 MIN_BATTERY = 0.25    # kalan pil bunun altına düşerse eve dön
@@ -74,6 +74,7 @@ def align_over_target(vehicle, grab, detector, timeout=40, show=True):
     """En yakın arabaya kilitlenip (takip) tam üstüne gelene kadar NED hız komutuyla kayar."""
     t0 = time.time()
     track, misses, good = None, 0, 0
+    vn_f = ve_f = 0.0  # yumuşatılmış komut
     while time.time() - t0 < timeout:
         img = grab()
         roll, pitch, yaw = vehicle.attitude()
@@ -100,11 +101,13 @@ def align_over_target(vehicle, grab, detector, timeout=40, show=True):
         dn, de = g
         err = math.hypot(dn, de)
         good = good + 1 if err < ALIGN_TOL_M else 0
-        if good >= 4:
+        if good >= 3:
             vehicle.hover()
             return True
-        sp = min(1.5, 0.6 * err)
-        vehicle.velocity_ned(dn / err * sp if err > 1e-6 else 0, de / err * sp if err > 1e-6 else 0, 0.0)
+        sp = min(1.5, 0.5 * err)
+        vn, ve = (dn / err * sp, de / err * sp) if err > 1e-6 else (0.0, 0.0)
+        vn_f, ve_f = 0.5 * vn_f + 0.5 * vn, 0.5 * ve_f + 0.5 * ve   # ani yön değişimini yumuşat
+        vehicle.velocity_ned(vn_f, ve_f, 0.0)
         time.sleep(0.12)
     vehicle.hover()
     return False

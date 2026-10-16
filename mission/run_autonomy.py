@@ -42,6 +42,10 @@ def main():
     fly_mission.SHOW_PREVIEW = args.goster
 
     cfg = load_mission()
+    import perception
+    perception.CAMERA_STABILIZED = cfg.get("camera_gimbal", False)
+    perception.CAMERA_YAW_LOCK = (None if cfg.get("camera_yaw_lock_deg") is None
+                                  else __import__("math").radians(cfg["camera_yaw_lock_deg"]))
     scene = json.loads((ROOT / "mission" / "scene_objects.json").read_text(encoding="utf-8"))
     G = scene["ground_z_ned"]
     drop_test.GROUND_Z = G

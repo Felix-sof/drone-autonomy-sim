@@ -22,6 +22,12 @@ editor_stop() {
   editor_up && taskkill //IM UnrealEditor.exe //F >/dev/null 2>&1
   rm -f "$FLAGS/quit"
 }
+px4_start() {
+  # Bağımsız gizli bir wsl.exe süreci: başlatan oturum kapanınca PX4 de kapanmasın
+  # (wsl.exe ... '... &' ile başlatınca oturum bitince "PX4 Exiting..." oluyordu)
+  wsl.exe -d Ubuntu -u sanberk -- bash -lc 'rm -f /tmp/px4.log'
+  powershell -NoProfile -Command "Start-Process -WindowStyle Hidden -FilePath wsl.exe -ArgumentList '-d Ubuntu -u sanberk -- bash -lc \"cd ~/PX4-Autopilot && PX4_SIM_MODEL=none_iris PX4_SIM_HOST_ADDR=127.0.0.1 ./build/px4_sitl_default/bin/px4 -d > /tmp/px4.log 2>&1\"'"
+}
 editor_start() {   # auto modunda aç: init_unreal.py Play'i kendisi başlatır
   mkdir -p "$FLAGS"; rm -f "$FLAGS/quit" "$FLAGS/play"; touch "$FLAGS/auto"
   powershell -NoProfile -Command "Start-Process -FilePath '$UE' -ArgumentList '\"C:\UE\Sa\Sa.uproject\"'"
@@ -38,7 +44,7 @@ case "$mode" in
     if [ "$mode" = px4 ]; then
       for _ in $(seq 1 300); do port_up 4560 && break; sleep 2; done   # AirSim PX4'ü bekliyor
       port_up 4560 || { echo "AirSim 4560'ta beklemiyor"; exit 1; }
-      wsl.exe -d Ubuntu -u sanberk -- bash -lc 'cd ~/PX4-Autopilot && PX4_SIM_MODEL=none_iris PX4_SIM_HOST_ADDR=127.0.0.1 nohup ./build/px4_sitl_default/bin/px4 -d > /tmp/px4.log 2>&1 &'
+      px4_start
       for _ in $(seq 1 60); do
         wsl.exe -d Ubuntu -u sanberk -- bash -lc 'grep -q "Ready for takeoff" /tmp/px4.log' && { echo "PX4 hazır (MAVSDK: udp://:14550)"; break; }
         sleep 2
