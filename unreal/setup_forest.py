@@ -244,15 +244,45 @@ for i in range(N_CARS):
     car_names.append(car.get_name())
 
 # --- 7) Helipad ve paket modeli ---
+def aruco_material():
+    """6 m helipad = 4 m ArUco (DICT_4X4_50, id 0) + 1 m beyaz kenar; unreal/assets/T_HelipadAruco.png.
+
+    Drone iniş noktasını Unreal'in bilgisinden değil, bu işaretçiyi kamerayla görerek bulur
+    (gerçek hassas iniş sistemleri de böyle çalışır).
+    """
+    tex_path = f"{GAME}/T_HelipadAruco"
+    if not lib.does_asset_exist(tex_path):
+        task = unreal.AssetImportTask()
+        task.filename = str(ROOT / "unreal" / "assets" / "T_HelipadAruco.png")
+        task.destination_path = GAME
+        task.automated = True
+        task.replace_existing = True
+        task.save = True
+        unreal.AssetToolsHelpers.get_asset_tools().import_asset_tasks([task])
+    tex = lib.load_asset(tex_path)
+    tex.set_editor_property("filter", unreal.TextureFilter.TF_NEAREST)        # keskin kenar
+    tex.set_editor_property("mip_gen_settings", unreal.TextureMipGenSettings.TMGS_NO_MIPMAPS)
+    lib.save_loaded_asset(tex)
+    path = f"{GAME}/M_HelipadAruco"
+    if lib.does_asset_exist(path):
+        return lib.load_asset(path)
+    m = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+        "M_HelipadAruco", GAME, unreal.Material, unreal.MaterialFactoryNew())
+    sample = mel.create_material_expression(m, unreal.MaterialExpressionTextureSample, -400, 0)
+    sample.set_editor_property("texture", tex)
+    mel.connect_material_property(sample, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
+    rough = mel.create_material_expression(m, unreal.MaterialExpressionConstant, -400, 250)
+    rough.set_editor_property("r", 0.9)
+    mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    mel.recompile_material(m)
+    lib.save_loaded_asset(m)
+    return m
+
+
 pad_mesh = mesh_copy("/Engine/BasicShapes/Plane", "SM_Helipad")
-cube = lib.load_asset("/Engine/BasicShapes/Cube")
 basic = "/Engine/BasicShapes/BasicShapeMaterial"
-spawn(pad_mesh, ned_to_ue(lx, ly, 1), 0, (6, 6, 1), "Helipad",
-      material=material_instance("MI_Pad", basic, vectors={"Color": (0.08, 0.08, 0.08)}))
-white = material_instance("MI_White", basic, vectors={"Color": (0.95, 0.95, 0.95)})
-for dy in (-1.0, 1.0):
-    spawn(cube, ned_to_ue(lx, ly + dy, 2), 0, (3.0, 0.4, 0.02), "Helipad_H", material=white)
-spawn(cube, ned_to_ue(lx, ly, 2), 0, (0.4, 2.0, 0.02), "Helipad_H", material=white)
+# Plane'in UV'si 0-1: doku tam oturur; yaw 0 -> işaretçinin "üstü" kuzey (NED x+)
+spawn(pad_mesh, ned_to_ue(lx, ly, 1), 0, (6, 6, 1), "Helipad", material=aruco_material())
 
 pkg_mesh = mesh_copy("/Engine/BasicShapes/Cube", "SM_Package")
 try:

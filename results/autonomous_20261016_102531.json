@@ -1,0 +1,34 @@
+{
+  "irtifa_m": 25.0,
+  "model": "C:/UE/drone_runs/car_forest2/weights/best.pt",
+  "sure_s": 252.9,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "en_yakin_araba": "StaticMeshActor_320",
+      "merkeze_m": 0.23,
+      "guven": 0.57,
+      "zaman_s": 73.2
+    },
+    {
+      "no": 2,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "en_yakin_araba": "StaticMeshActor_322",
+      "merkeze_m": 0.14,
+      "guven": 0.64,
+      "zaman_s": 129.9
+    },
+    {
+      "no": 3,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "en_yakin_araba": "StaticMeshActor_319",
+      "merkeze_m": 0.26,
+      "guven": 0.66,
+      "zaman_s": 188.3
+    }
+  ]
+}

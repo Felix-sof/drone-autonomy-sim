@@ -194,8 +194,8 @@ def fly_once(client, cfg, rec, model, waypoints, z, rng, before_landing=None):
     print(f"İniş noktasına gidiliyor: ({lx}, {ly})")
     fly_path(client, [(lx, ly)], z, v, cfg, None, model, found)
     hide_preview()
-    client.moveToZAsync(-8, 2).join()
-    precision_land(client, cfg)
+    from aruco_land import aruco_land  # döngüsel import olmasın diye burada
+    aruco_land(client, cfg["camera"])   # simülatör bilgisi olmadan, işaretçiyle iniş
     return found
 
 

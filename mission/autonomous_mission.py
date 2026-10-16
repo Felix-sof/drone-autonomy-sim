@@ -25,6 +25,7 @@ import numpy as np
 import drop_test
 import fly_mission
 from collect_data import area, scatter_cars
+from aruco_land import aruco_land
 from drop_test import PACKAGE_SIZE, center_over_target, classify_impact, wait_until_rest
 from sim_client import (ROOT, airsim, connect, get_rgb, load_mission, safe_land,
                         wait_until_still)
@@ -99,6 +100,7 @@ def main():
     visited = []      # gidilen hedeflerin tahmini konumları
     dropped = []      # paket bırakılan yerler (aynı arabaya ikinci paket bırakılmasın)
     approaches = 0
+    landing_err = None
     deliveries = []
     t_start = time.time()
     try:
@@ -167,8 +169,10 @@ def main():
         print("\nGörev tamam, iniş noktasına dönülüyor")
         lx, ly = cfg["landing"]
         client.moveToPositionAsync(lx, ly, z, args.hiz).join()
-        client.moveToZAsync(G - 8, 2).join()
-        fly_mission.precision_land(client, cfg)
+        landed_on_marker = aruco_land(client, cam)
+        dp = client.getMultirotorState().kinematics_estimated.position
+        landing_err = math.hypot(dp.x_val - lx, dp.y_val - ly)  # helipad iniş noktasında
+        print(f"İniş: {'işaretçiyle' if landed_on_marker else 'işaretçisiz'}, helipad merkezine {landing_err:.2f} m")
     finally:
         client.enableApiControl(False)
 
@@ -181,6 +185,7 @@ def main():
     print(f"Toplam süre (kalkıştan inişe): {total:.0f} s")
     out = ROOT / "results" / f"autonomous_{datetime.now():%Y%m%d_%H%M%S}.json"
     out.write_text(json.dumps({"irtifa_m": args.irtifa, "model": args.model, "sure_s": round(total, 1),
+                               "inis_hatasi_m": None if landing_err is None else round(landing_err, 2),
                                "teslimatlar": deliveries}, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Kaydedildi: {out}")
 
