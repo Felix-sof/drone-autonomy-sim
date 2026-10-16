@@ -19,8 +19,13 @@ yazıldı. Değişen yalnızca arka uçlar:
   metre sapar; hassas bırakma ve iniş için zeminden yükseklik önemli (`height_agl()`).
 - **Yardımcı bilgisayar:** NVIDIA Jetson Orin Nano sınıfı (YOLO'yu TensorRT ile gerçek zamanlı
   çalıştırır). Pixhawk'a TELEM2 seri portundan bağlanır.
-- **Kamera:** aşağı bakan, gövdeye sabit; ~90° yatay görüş (simülasyonla aynı; farklıysa
-  `perception.py`/`aruco_land.py`'deki `HFOV_DEG`'i güncelle). Mümkünse global shutter.
+- **Kamera + gimbal (ŞART):** aşağı bakan kamera **stabilizasyonlu gimbal**'da, yaw kilitli
+  ("yaw lock", görüntünün üstü kuzey). ~90° yatay görüş (farklıysa `HFOV_DEG`'i güncelle).
+  Neden: PX4 SITL'de gövdeye sabit kamerayla, MAVLink'ten gelen yönelim ile kamera karesi farklı
+  anlarda geldiği için eğim telafisi 25 m'de ±5 m sahte hata üretti ve drone hedef üstünde
+  salındı. Gimbal'lı kamerayla ölçülen sapma gerçeğe ±0.2 m oturdu, görev 3/3 isabetle bitti.
+  Gimbal yoksa `perception.CAMERA_STABILIZED=False` ile eğim telafisi kullanılır ama kamera
+  karesi ile yönelim zaman damgasıyla eşleştirilmelidir.
 - **Paket bırakıcı:** servo kancası/tutucu, Pixhawk AUX çıkışına.
 - **Kumanda (RC) + telemetri telsizi:** her an manuel devralma için ŞART.
 
@@ -48,6 +53,10 @@ Kamera kalibrasyonu: OpenCV satranç tahtası kalibrasyonuyla odak uzaklığı v
 - Kendi drone'unla test alanında birkaç uçuş görüntüsü çek, etiketle, eğitime ekle — en büyük
   kazanç buradan gelir.
 - Jetson için: `yolo export model=best.pt format=engine half=True imgsz=960` (cihazın üstünde).
+- Ekran kartsız işlemcide (ONNX, laptop CPU) ölçüm: 640 px'de ~3 kare/s, 960 px'de ~1.6 kare/s —
+  canlı hizalama için YETERSİZ. GPU/NPU'lu yardımcı bilgisayar gerekli (Jetson sınıfı).
+- Model durumu (`car_mixed2`, simülasyon + VisDrone): gerçek drone görüntülerinde (VisDrone val)
+  mAP50 0.863, simülasyonda 0.823. Sadece simülasyonla eğitilen model gerçekte 0.02'ydi.
 
 ## 4. Test merdiveni (her basamağı geçmeden sonrakine geçme)
 

@@ -38,6 +38,7 @@ def main():
     ap.add_argument("--irtifa", type=float, default=25.0)
     ap.add_argument("--hiz", type=float, default=5.0)
     ap.add_argument("--goster", action="store_true")
+    ap.add_argument("--ruzgar", default="0,0", help="sabit rüzgar, m/s: kuzey,doğu (ör. 6,3)")
     args = ap.parse_args()
     fly_mission.SHOW_PREVIEW = args.goster
 
@@ -62,6 +63,10 @@ def main():
         vehicle = Px4Vehicle(args.px4_address)
 
     scatter_cars(client, scene, cfg["landing"], np.random.default_rng())  # her görev yeni sahne
+    wn, we = (float(x) for x in args.ruzgar.split(","))
+    client.simSetWind(airsim.Vector3r(wn, we, 0))   # drone dinamiğini etkiler (paket fiziğini değil)
+    if wn or we:
+        print(f"Rüzgar: kuzey {wn} m/s, doğu {we} m/s ({math.hypot(wn, we):.1f} m/s)")
     detector = CarDetector(args.model)
     payload = SimPayload(client)
 
@@ -93,7 +98,8 @@ def main():
     print(f"İniş: {'ArUco işaretçisiyle' if marker else 'işaretçisiz'}, helipad merkezine {landing_err:.2f} m")
     print(f"Toplam süre: {total:.0f} s" + (f"  |  İPTAL: {abort_reason}" if abort_reason else ""))
     out = ROOT / "results" / f"autonomy_{args.backend}_{datetime.now():%Y%m%d_%H%M%S}.json"
-    out.write_text(json.dumps({"backend": args.backend, "model": args.model, "irtifa_m": args.irtifa,
+    client.simSetWind(airsim.Vector3r(0, 0, 0))
+    out.write_text(json.dumps({"backend": args.backend, "ruzgar": args.ruzgar, "model": args.model, "irtifa_m": args.irtifa,
                                "sure_s": round(total, 1), "inis_hatasi_m": round(landing_err, 2),
                                "inis_isaretci": marker, "iptal": abort_reason, "teslimatlar": results},
                               indent=2, ensure_ascii=False), encoding="utf-8")

@@ -27,7 +27,9 @@ AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştire
 | YOLO11s araba tespiti, orman, 2237 görüntü / 50 tur | **mAP50 0.84**, precision 0.88, recall 0.75 — doğrulama **hiç görülmemiş 8 turda** |
 | **Görüntüyle hassas iniş** (ArUco, eğim telafili, simülatör bilgisi yok), 25 m, 2-6 m kaydırarak | iniş hatası **0-1 cm** |
 | Aynı modelin **gerçek** drone görüntülerinde (VisDrone val, 548 görüntü, 16k araç) başarısı | mAP50 **0.02** — sadece simülasyonla eğitilen model gerçekte çalışmıyor → karma eğitim |
-| PX4 SITL (WSL2) + MAVSDK: kalkış / git / NED hız / iniş | çalışıyor; tam görev PX4'te hata ayıklanıyor (koordinat çerçevesi) |
+| **PX4 SITL ile tam otonom görev** (MAVLink/MAVSDK, gimbal'lı kamera, karma model), 4 görev × 3 paket | **12/12 isabet, 12 farklı araba, 0 yanlış alarm**; ArUco iniş hatası ort. **7 cm**; görev ~2.5 dk |
+| PX4 tam görev **rüzgarda** (5 m/s ×2, 8 m/s ×1) | **9/9 isabet**, ArUco iniş 3-10 cm — *not: AirSim rüzgarı drone'u etkiliyor, düşen paketi etkilemiyor; gerçekte paket sürüklenir* |
+| Karma model (simülasyon + VisDrone) gerçek drone görüntülerinde | mAP50 **0.86** (simülasyonda 0.82) |
 
 İsabet = paketin **ilk temas** noktası hedef arabanın üstten görünen ayak izinde mi
 (başka araba / ağaç / yer ayrı sayılır). Kavisli tavandan sekme ayrıca ölçülür.
@@ -43,7 +45,12 @@ AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştire
 - **Kamera eğimi telafi edilmeli:** 2 m/s kayan drone ~10° eğilir; 25 m'de bu 4-5 m sahte sapma.
   Telafisiz ArUco inişinde drone işaretçinin etrafında salınıp uzaklaştı; ışını roll/pitch ile
   yataya döndürüp NED hız komutu vermek 0-1 cm iniş verdi.
-- **Simülasyon ≠ gerçek:** simülasyonda 0.84 olan model gerçek görüntüde 0.02. Gerçek veri şart.
+- **Simülasyon ≠ gerçek:** simülasyonda 0.84 olan model gerçek görüntüde 0.02. Gerçek veri şart:
+  VisDrone ile karma eğitim gerçekte 0.86'ya çıkardı, simülasyondaki başarıyı koruyarak.
+- **Gövdeye sabit kamera + MAVLink telemetrisi = senkron sorunu:** PX4'te yönelim ile kamera karesi
+  farklı anlarda geliyor; eğim telafisi 25 m'de ±5 m sahte hata üretti, drone salındı. Gimbal'lı
+  kamera (pitch -89.9° — tam -90° gimbal kilidi yapıyor —, yaw kuzeye kilitli) ölçümü ±0.2 m'ye
+  indirdi ve PX4 görevleri 12/12 oldu.
 - **Kalan darboğaz tespit:** bırakılan her paket bir arabaya isabet ediyor; kayıplar modelin
   bazı arabaları hiç görmemesinden (recall 0.75). Sonraki adım daha çok/çeşitli veri.
 

@@ -1,0 +1,48 @@
+{
+  "backend": "px4",
+  "ruzgar": "6.4,4.8",
+  "model": "C:/UE/drone_runs/car_mixed2/weights/best.pt",
+  "irtifa_m": 25.0,
+  "sure_s": 130.4,
+  "inis_hatasi_m": 0.03,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": -34.4,
+      "e": 12.91,
+      "guven": 0.57,
+      "zaman_s": 38.7,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_642",
+      "merkeze_m": 0.42,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.42 m)"
+    },
+    {
+      "no": 2,
+      "n": -43.19,
+      "e": 13.59,
+      "guven": 0.51,
+      "zaman_s": 61.7,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_650",
+      "merkeze_m": 0.27,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.27 m)"
+    },
+    {
+      "no": 3,
+      "n": -31.66,
+      "e": -19.54,
+      "guven": 0.6,
+      "zaman_s": 88.1,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_647",
+      "merkeze_m": 0.28,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.28 m)"
+    }
+  ]
+}
