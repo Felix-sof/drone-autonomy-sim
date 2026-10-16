@@ -9,3 +9,4 @@ runs/
 
 # Unreal'deki setup_level.py her çalıştığında yeniden yazılır
 mission/scene_objects.json
+.pytest_cache/

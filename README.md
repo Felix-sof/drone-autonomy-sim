@@ -1,8 +1,20 @@
 # Otonom Drone Simülasyonu: Tespit + Paket Bırakma
 
-Unreal Engine 5.8 + [Cosys-AirSim](https://github.com/Cosys-Lab/Cosys-AirSim) üzerinde döner kanatlı bir drone:
-alanı gezer, alt kamerasıyla arabaları tespit eder, otomatik etiketli eğitim verisi toplar,
-hedefin üstüne hizalanıp kargo paketi bırakır ve helipad'e hassas iniş yapar.
+Unreal Engine 5.8 + [Cosys-AirSim](https://github.com/Cosys-Lab/Cosys-AirSim) + **PX4** üzerinde döner kanatlı
+bir drone: alanı kendisi tarar, alt kamerasıyla arabaları tespit eder, hedefin üstüne hizalanıp
+kargo paketi bırakır ve **ArUco işaretçili helipad'e sadece kamerayla** iner.
+
+Görev kodu simülatörden bağımsız yazıldı (araç / kamera / paket arayüzleri): aynı `autonomy.py`
+AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştirerek — gerçek drone'da
+çalışır. Gerçek drone'a geçiş: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md).
+
+```
+            ┌──────────────── autonomy.py (ara/tespit/hizala/bırak/in, güvenlik) ───────────────┐
+ vehicle.py │ AirSimVehicle (SimpleFlight)  │  Px4Vehicle ── MAVSDK/MAVLink ──> PX4 (SITL / Pixhawk) │
+ kamera     │ AirSim simGetImages           │  camera.OpenCVCamera (USB / CSI / RTSP)               │
+ paket      │ payload.SimPayload (fizik)    │  payload.GripperPayload (PX4 gripper)                 │
+            └────────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Sonuçlar (şimdiye kadar)
 
@@ -13,6 +25,9 @@ hedefin üstüne hizalanıp kargo paketi bırakır ve helipad'e hassas iniş yap
 | Paket bırakma, kusursuz (Unreal) tespit, **10 m**, 10 deneme | **10/10**, ilk temas merkeze ort. 3 cm, 64 s/deneme |
 | Paket bırakma, kusursuz (Unreal) tespit, **25 m**, 10 deneme | **10/10**, ilk temas merkeze ort. 3 cm, **49 s/deneme** (%23 daha hızlı) |
 | YOLO11s araba tespiti, orman, 2237 görüntü / 50 tur | **mAP50 0.84**, precision 0.88, recall 0.75 — doğrulama **hiç görülmemiş 8 turda** |
+| **Görüntüyle hassas iniş** (ArUco, eğim telafili, simülatör bilgisi yok), 25 m, 2-6 m kaydırarak | iniş hatası **0-1 cm** |
+| Aynı modelin **gerçek** drone görüntülerinde (VisDrone val, 548 görüntü, 16k araç) başarısı | mAP50 **0.02** — sadece simülasyonla eğitilen model gerçekte çalışmıyor → karma eğitim |
+| PX4 SITL (WSL2) + MAVSDK: kalkış / git / NED hız / iniş | çalışıyor; tam görev PX4'te hata ayıklanıyor (koordinat çerçevesi) |
 
 İsabet = paketin **ilk temas** noktası hedef arabanın üstten görünen ayak izinde mi
 (başka araba / ağaç / yer ayrı sayılır). Kavisli tavandan sekme ayrıca ölçülür.
@@ -25,6 +40,10 @@ hedefin üstüne hizalanıp kargo paketi bırakır ve helipad'e hassas iniş yap
 - **Hizalama takip etmeli:** "görüntü merkezine en yakın kutu" seçimi, hedef bir kare kaybolunca
   yandaki arabaya kayıyor (bir görevde 3 paket aynı arabaya gitti). Önceki karedeki konuma en
   yakın kutuyu seçip sıçramayı sınırlamak + birkaç kare kayıp toleransı bunu çözdü.
+- **Kamera eğimi telafi edilmeli:** 2 m/s kayan drone ~10° eğilir; 25 m'de bu 4-5 m sahte sapma.
+  Telafisiz ArUco inişinde drone işaretçinin etrafında salınıp uzaklaştı; ışını roll/pitch ile
+  yataya döndürüp NED hız komutu vermek 0-1 cm iniş verdi.
+- **Simülasyon ≠ gerçek:** simülasyonda 0.84 olan model gerçek görüntüde 0.02. Gerçek veri şart.
 - **Kalan darboğaz tespit:** bırakılan her paket bir arabaya isabet ediyor; kayıplar modelin
   bazı arabaları hiç görmemesinden (recall 0.75). Sonraki adım daha çok/çeşitli veri.
 
@@ -35,6 +54,17 @@ airsim/settings.json            AirSim ayarları -> Belgeler\AirSim\settings.jso
 unreal/setup_level.py           Editörde çalışır: zemin, rastgele arabalar, helipad, paket modeli
 unreal/setup_level_launcher.py  Türkçe karaktersiz yoldan çağırmak için (C:\UE\setup_level.py)
 unreal/config/                  Unreal projesinin ayar dosyalarının kopyası (C:\UE\Sa\Config)
+mission/autonomy.py             TAŞINABİLİR görev çekirdeği (ara, tespit, hizala, bırak, in, güvenlik)
+mission/vehicle.py              Araç arayüzü: AirSimVehicle, Px4Vehicle (MAVSDK)
+mission/perception.py           YOLO tespiti + eğim telafili piksel->yer geometrisi
+mission/aruco_land.py           ArUco işaretçisiyle görüntüyle hassas iniş
+mission/payload.py, camera.py   Paket bırakıcı (sim/gripper), gerçek kamera (OpenCV)
+mission/run_autonomy.py         Görevi simülasyonda çalıştır (--backend airsim|px4)
+mission/run_real.py             Gerçek drone: bench / connect / mission (onaylı)
+mission/sim.sh                  Simülasyonu tek komutla başlat/durdur (px4|airsim|stop)
+airsim/settings_px4.json        AirSim'i PX4 SITL'e bağlayan ayarlar (TCP 4560, lockstep)
+training/visdrone_to_yolo.py    Gerçek drone veri seti (VisDrone) -> YOLO; evaluate.py ölçüm
+docs/GERCEK_DRONE.md            Donanım, PX4 ayarları, test merdiveni, güvenlik
 mission/sim_client.py           Ortak yardımcılar: bağlantı, kamera, tespit, yumuşak iniş
 mission/fly_mission.py          Waypoint görevi + veri kaydı + helipad'e hassas iniş
 mission/collect_data.py         Çok turlu otomatik veri toplama (her turda rastgele sahne)
