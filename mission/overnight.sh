@@ -27,6 +27,7 @@ wait_play() {  # Play'in kararlı açılmasını bekle (en fazla ~15 dk)
   return 1
 }
 start_editor() {
+  rm -f "$FLAGS/quit" "$FLAGS/play"   # önceki adımdan kalan bayrak yeni editörü hemen kapatmasın
   touch "$FLAGS/auto"
   powershell -NoProfile -Command "Start-Process -FilePath '$UE' -ArgumentList '\"C:\UE\Sa\Sa.uproject\"'"
 }
@@ -36,6 +37,7 @@ ensure_play() {  # editör kapalıysa aç, Play kapalıysa başlat
   wait_play
 }
 quit_editor() {
+  editor_up || return 0                # kapalıyken bayrak bırakma (sonraki açılışı kapatır)
   touch "$FLAGS/quit"
   for _ in $(seq 1 90); do editor_up || return 0; sleep 2; done
   log "editör kapanmadı, zorla kapatılıyor"

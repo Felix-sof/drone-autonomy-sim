@@ -29,30 +29,42 @@ from sim_client import (ROOT, airsim, connect, get_boxes, get_rgb, load_mission,
                         setup_detection, wait_until_still)
 
 PACKAGE_SIZE = (0.4, 0.3, 0.25)  # metre
-MODEL_CONF = 0.45                # YOLO ile hizalanırken kabul edilen en düşük güven
+MODEL_CONF = 0.3                 # YOLO ile hizalanırken kabul edilen en düşük güven
+MAX_MISSES = 10                  # hedef bu kadar ardışık karede görünmezse vazgeç (tespit titrer)
 CAR_SIZE_M = (1.98, 5.24, 1.47)  # Fab araba modeli, mesh ekseninde (x=genişlik, y=uzunluk, z)
 GPS_ERROR_M = 3.0                # hedefin yaklaşık konumundaki rastgele hata
 
 
-def target_box(boxes, target_name, w, h):
-    """Hedef arabanın kutusu. Unreal etiketlerinde isimle, YOLO'da görüntü merkezine en yakın kutu."""
+def target_box(boxes, target_name, w, h, near=None, max_jump=None):
+    """Hedef arabanın kutusu.
+
+    Unreal etiketlerinde isimle bulunur. YOLO'da isim yok: `near` (bir önceki karede takip
+    edilen nokta, yoksa görüntü merkezi) noktasına en yakın kutu seçilir; `max_jump` pikselden
+    uzaktaysa hiç seçilmez. Böylece hedef bir kare kaybolunca drone yandaki arabaya kaymaz
+    (otonom görevde aynı arabaya üç paket bırakılmasının sebebi buydu).
+    """
     if target_name:
         # isim "SM_Car_0_<aktör>_<id>" biçiminde; "_" eki Actor_2'nin Actor_25'e uymasını önler
         boxes = [b for b in boxes if f"{target_name}_" in b[4] or b[4] == target_name]
     if not boxes:
         return None
-    return min(boxes, key=lambda b: ((b[0] + b[2]) / 2 - w / 2) ** 2 + ((b[1] + b[3]) / 2 - h / 2) ** 2)
+    nx, ny = near if near is not None else (w / 2, h / 2)
+    best = min(boxes, key=lambda b: ((b[0] + b[2]) / 2 - nx) ** 2 + ((b[1] + b[3]) / 2 - ny) ** 2)
+    if max_jump is not None and math.hypot((best[0] + best[2]) / 2 - nx, (best[1] + best[3]) / 2 - ny) > max_jump:
+        return None
+    return best
 
 
-def detect(client, cam, model, target_name):
+def detect(client, cam, model, target_name, near=None):
     img = get_rgb(client, cam)
     if model is None:
         boxes = get_boxes(client, cam)
-    else:
-        res = model.predict(img, conf=MODEL_CONF, verbose=False)[0]
-        boxes = [(*b.tolist(), "car") for b in res.boxes.xyxy.cpu()]
-        target_name = None
-    return img, target_box(boxes, target_name, img.shape[1], img.shape[0])
+        return img, target_box(boxes, target_name, img.shape[1], img.shape[0])
+    res = model.predict(img, conf=MODEL_CONF, verbose=False)[0]
+    boxes = [(*b.tolist(), "car") for b in res.boxes.xyxy.cpu()]
+    # takip: kilitlendikten sonra hedef kare başına en fazla görüntü genişliğinin %12'si kayabilir
+    jump = 0.12 * img.shape[1] if near is not None else None
+    return img, target_box(boxes, None, img.shape[1], img.shape[0], near, jump)
 
 
 def center_over_target(client, cam, model, target_name, alt, timeout=40):
@@ -69,15 +81,25 @@ def center_over_target(client, cam, model, target_name, alt, timeout=40):
     """
     t0 = time.time()
     good = 0
+    misses = 0
+    track = None  # YOLO'da kilitlenilen arabanın görüntüdeki son konumu
     while time.time() - t0 < timeout:
-        img, box = detect(client, cam, model, target_name)
+        img, box = detect(client, cam, model, target_name, near=track)
         if box is None:
+            # YOLO güveni eşik etrafında titreyebiliyor: tek karede kaybolunca hemen vazgeçme
             client.hoverAsync()
-            return False
+            misses += 1
+            if misses > MAX_MISSES:
+                return False
+            time.sleep(0.1)
+            continue
+        misses = 0
         show(img, [box])
         h, w = img.shape[:2]
         ex = ((box[0] + box[2]) / 2 - w / 2) / (w / 2)
         ey = ((box[1] + box[3]) / 2 - h / 2) / (h / 2)
+        # drone hedefe doğru kaydıkça hedef görüntü merkezine yaklaşır; takip noktası kutunun merkezi
+        track = ((box[0] + box[2]) / 2, (box[1] + box[3]) / 2)
         pos = client.getMultirotorState().kinematics_estimated.position
         height = GROUND_Z - pos.z_val
         dx, dy = -ey * height * h / w, ex * height

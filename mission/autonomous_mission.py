@@ -32,6 +32,7 @@ from sim_client import (ROOT, airsim, connect, get_rgb, load_mission, safe_land,
 LANE_SPACING_M = 35   # 25 m'den kamera ~50 m genişliğinde şerit görür; kenarlarda örtüşme kalsın
 MIN_CONF = 0.5        # aramada "araba var" demek için gereken güven
 NEW_TARGET_M = 8.0    # daha önce gidilen bir hedefe bu kadar yakın tespitler yok sayılır
+MAX_APPROACHES = 12   # güvenlik: bir görevde en fazla bu kadar hedefe yaklaşılır
 
 
 def lawnmower(a, spacing):
@@ -96,6 +97,8 @@ def main():
     print(f"Arama deseni: {len(route) // 2} şerit, {len(route)} nokta, irtifa {args.irtifa:.0f} m")
 
     visited = []      # gidilen hedeflerin tahmini konumları
+    dropped = []      # paket bırakılan yerler (aynı arabaya ikinci paket bırakılmasın)
+    approaches = 0
     deliveries = []
     t_start = time.time()
     try:
@@ -125,6 +128,10 @@ def main():
 
             tx, ty, conf = target
             visited.append((tx, ty))
+            approaches += 1
+            if approaches > MAX_APPROACHES:
+                print(f"  {MAX_APPROACHES} yaklaşma sınırı aşıldı, görev sonlandırılıyor")
+                break
             print(f"\nAraba bulundu (güven {conf:.2f}) ~({tx:.1f}, {ty:.1f}) -> yaklaşılıyor")
             client.moveToPositionAsync(tx, ty, z, 4).join()
             if not center_over_target(client, cam, model, None, alt):
@@ -132,7 +139,13 @@ def main():
                 continue
             wait_until_still(client, max_speed=0.05)
             d = client.getMultirotorState().kinematics_estimated.position
-            visited[-1] = (d.x_val, d.y_val)
+            # tahmini konum da listede kalsın: tahmin ile hizalanılan araba farklıysa
+            # (kenardaki tespitlerde tahmin metrelerce sapabiliyor) aynı tespite sonsuza dek dönülmesin
+            visited.append((d.x_val, d.y_val))
+            if any(math.hypot(d.x_val - px, d.y_val - py) < NEW_TARGET_M for px, py in dropped):
+                print("  bu araba zaten teslim aldı, bırakılmadı; aramaya devam")
+                continue
+            dropped.append((d.x_val, d.y_val))
             pkg = client.simSpawnObject(
                 "Package", "SM_Package",
                 airsim.Pose(airsim.Vector3r(d.x_val, d.y_val, d.z_val + 0.7), airsim.Quaternionr()),
