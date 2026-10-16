@@ -36,7 +36,8 @@ UNDERGROWTH = [f"{SPRUCE}/small/spruce_small_0{i}" for i in (2, 3, 4)]
 CAR_COLORS = {
     "Red": (0.6, 0.03, 0.03), "Blue": (0.03, 0.1, 0.5), "White": (0.85, 0.85, 0.85),
     "Black": (0.02, 0.02, 0.02), "Silver": (0.45, 0.45, 0.5), "Green": (0.05, 0.25, 0.08),
-    "Yellow": (0.8, 0.6, 0.05), "Orange": (0.8, 0.3, 0.03),
+    "Yellow": (0.8, 0.6, 0.05), "Orange": (0.8, 0.3, 0.03), "DarkGray": (0.1, 0.1, 0.11),
+    "Beige": (0.55, 0.45, 0.3), "LightBlue": (0.3, 0.5, 0.75), "Maroon": (0.25, 0.02, 0.04),
 }
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -69,6 +70,30 @@ def material_instance(name, parent_path, vectors=None, scalars=None):
         mel.set_material_instance_scalar_parameter_value(mi, k, v)
     lib.save_loaded_asset(mi)
     return mi
+
+
+def paint_material(name, rgb):
+    """Tek renkli araba boyası, gerçek bir Material (instance değil).
+
+    AirSim'in simSetObjectMaterial'ı sadece UMaterial yükleyebiliyor; collect_data.py
+    her turda arabaların boyasını bunlardan rastgele değiştiriyor.
+    """
+    path = f"{GAME}/{name}"
+    if lib.does_asset_exist(path):
+        return lib.load_asset(path)
+    m = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
+        name, GAME, unreal.Material, unreal.MaterialFactoryNew())
+    color = mel.create_material_expression(m, unreal.MaterialExpressionConstant3Vector, -400, 0)
+    color.set_editor_property("constant", unreal.LinearColor(*rgb, 1.0))
+    mel.connect_material_property(color, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    for prop, value, y in ((unreal.MaterialProperty.MP_ROUGHNESS, 0.3, 150),
+                           (unreal.MaterialProperty.MP_METALLIC, 0.4, 250)):
+        k = mel.create_material_expression(m, unreal.MaterialExpressionConstant, -400, y)
+        k.set_editor_property("r", value)
+        mel.connect_material_property(k, "", prop)
+    mel.recompile_material(m)
+    lib.save_loaded_asset(m)
+    return m
 
 
 def freeze_foliage(actor):
@@ -193,8 +218,7 @@ car_mesh = mesh_copy(CAR_SRC, "SM_Car_Sedan")
 bb = car_mesh.get_bounding_box()
 car_pivot_h = -bb.min.z / 100.0           # pivot'un tekerlek altından yüksekliği
 car_height = (bb.max.z - bb.min.z) / 100.0
-car_mats = [material_instance(f"MI_CarBody_{n}", "/Engine/BasicShapes/BasicShapeMaterial",
-                              vectors={"Color": rgb}) for n, rgb in CAR_COLORS.items()]
+car_mats = [paint_material(f"M_CarPaint_{n}", rgb) for n, rgb in CAR_COLORS.items()]
 
 
 def car_spot(placed):
@@ -247,6 +271,7 @@ scene = {
     "area": list(AREA),
     "clearings": [[round(x, 2), round(y, 2), round(r, 2)] for x, y, r in clearings],
     "cruise_alt_m": CRUISE_ALT_M,
+    "paint_materials": [m.get_path_name() for m in car_mats],  # simSetObjectMaterial için
 }
 (ROOT / "mission" / "scene_objects.json").write_text(json.dumps(scene, indent=2), encoding="utf-8")
 

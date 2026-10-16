@@ -29,6 +29,8 @@ from sim_client import (ROOT, airsim, connect, get_boxes, get_rgb, load_mission,
                         setup_detection, wait_until_still)
 
 PACKAGE_SIZE = (0.4, 0.3, 0.25)  # metre
+MODEL_CONF = 0.45                # YOLO ile hizalanırken kabul edilen en düşük güven
+CAR_SIZE_M = (1.98, 5.24, 1.47)  # Fab araba modeli, mesh ekseninde (x=genişlik, y=uzunluk, z)
 GPS_ERROR_M = 3.0                # hedefin yaklaşık konumundaki rastgele hata
 
 
@@ -47,7 +49,7 @@ def detect(client, cam, model, target_name):
     if model is None:
         boxes = get_boxes(client, cam)
     else:
-        res = model.predict(img, conf=0.3, verbose=False)[0]
+        res = model.predict(img, conf=MODEL_CONF, verbose=False)[0]
         boxes = [(*b.tolist(), "car") for b in res.boxes.xyxy.cpu()]
         target_name = None
     return img, target_box(boxes, target_name, img.shape[1], img.shape[0])
@@ -145,6 +147,46 @@ def score(client, car, pkg_pos, car_height):
     return math.hypot(dx, dy), on_roof, (lx, ly)
 
 
+def on_car(client, car, p, margin=0.3):
+    """p (x, y) noktası arabanın üstten görünen ayak izinin içinde mi (yön ve ölçek dahil)."""
+    cp = client.simGetObjectPose(car)
+    s = client.simGetObjectScale(car).x_val
+    yaw = quaternion_to_euler_angles(cp.orientation)[2]
+    dx, dy = p[0] - cp.position.x_val, p[1] - cp.position.y_val
+    lx = dx * math.cos(yaw) + dy * math.sin(yaw)    # mesh x ekseni (genişlik)
+    ly = -dx * math.sin(yaw) + dy * math.cos(yaw)   # mesh y ekseni (uzunluk)
+    return abs(lx) <= CAR_SIZE_M[0] * s / 2 + margin and abs(ly) <= CAR_SIZE_M[1] * s / 2 + margin
+
+
+def classify_impact(client, cars, target, impact):
+    """İlk temas neye geldi: 'hedef', 'baska_araba', 'agac_vb' (yüksekte ama araba değil) ya da 'yer'."""
+    elevated = impact[2] < GROUND_Z - 0.4
+    if elevated and on_car(client, target, impact):
+        return "hedef"
+    if elevated:
+        if any(on_car(client, c, impact) for c in cars if c != target):
+            return "baska_araba"
+        return "agac_vb"
+    return "yer"
+
+
+def save_debug(client, cam, model, car, img, path):
+    """Teşhis karesi: YOLO kutuları mavi, gerçek hedef yeşil."""
+    import cv2
+    vis = img.copy()
+    res = model.predict(img, conf=MODEL_CONF, verbose=False)[0]
+    for (x1, y1, x2, y2), cf in zip(res.boxes.xyxy.cpu().tolist(), res.boxes.conf.cpu().tolist()):
+        cv2.rectangle(vis, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
+        cv2.putText(vis, f"{cf:.2f}", (int(x1), int(y1) - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+    for x1, y1, x2, y2, name in get_boxes(client, cam):
+        if f"{car}_" in name:
+            cv2.rectangle(vis, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+    h, w = vis.shape[:2]
+    cv2.drawMarker(vis, (w // 2, h // 2), (0, 0, 255), cv2.MARKER_CROSS, 30, 2)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(cv2.imencode(".jpg", cv2.resize(vis, (960, 540)))[1].tobytes())
+
+
 def main():
     global GROUND_Z
     ap = argparse.ArgumentParser()
@@ -154,6 +196,7 @@ def main():
     ap.add_argument("--gizle", action="store_true", help="Kamera önizleme penceresini açma")
     args = ap.parse_args()
     fly_mission.SHOW_PREVIEW = not args.gizle
+    debug_dir = ROOT / "results" / "debug" / f"drop_{datetime.now():%Y%m%d_%H%M%S}"
 
     cfg = load_mission()
     scene = json.loads((ROOT / "mission" / "scene_objects.json").read_text(encoding="utf-8"))
@@ -194,6 +237,8 @@ def main():
                 seen = center_over_target(client, cam, model, target_name(car), alt)
             if not seen:
                 print("  hedef kamerada görülmedi, atlanıyor")
+                if model is not None:
+                    save_debug(client, cam, model, car, get_rgb(client, cam), debug_dir / f"{i:02d}_gorulmedi.jpg")
                 results.append({"deneme": i, "sonuc": "gorulmedi"})
                 client.moveToZAsync(-cruise, 3).join()
                 continue
@@ -201,24 +246,30 @@ def main():
 
             d = client.getMultirotorState().kinematics_estimated.position
             cp = client.simGetObjectPose(car).position
-            print(f"  hizalandı: drone arabanın merkezinden "
-                  f"{math.hypot(d.x_val - cp.x_val, d.y_val - cp.y_val):.2f} m uzakta")
+            align = math.hypot(d.x_val - cp.x_val, d.y_val - cp.y_val)
+            print(f"  hizalandı: drone hedef arabanın merkezinden {align:.2f} m uzakta")
+            if model is not None:
+                save_debug(client, cam, model, car, get_rgb(client, cam), debug_dir / f"{i:02d}_hizalama.jpg")
             pkg = client.simSpawnObject(
                 "Package", "SM_Package",
                 airsim.Pose(airsim.Vector3r(d.x_val, d.y_val, d.z_val + 0.7), airsim.Quaternionr()),
                 airsim.Vector3r(*PACKAGE_SIZE), physics_enabled=True)
             print(f"  paket bırakıldı ({args.irtifa:.0f} m)")
             rest, impact = wait_until_rest(client, pkg, cam)
-            # vuruş: ilk temas yerden yüksekte mi (arabaya çarptı) — nişan başarısı
+            # ANA ÖLÇÜT ilk çarpma noktası: hedef arabanın ayak izine mi geldi.
+            # Ormanda "yerden yüksekte" tek başına yetmez: ağaç ya da başka araba olabilir.
             hit_dist, _, _ = score(client, car, impact, scene["car_height_m"])
-            hit = impact[2] < GROUND_Z - 0.4
-            # teslimat: paket arabanın üstünde mi kaldı — sekme/kayma dahil
+            kind = classify_impact(client, scene["cars"], car, impact)
+            hit = kind == "hedef"
+            # ek bilgi: paket arabanın üstünde mi kaldı (sekme/kayma dahil)
             dist, on_roof, (lx, ly) = score(client, car, rest, scene["car_height_m"])
-            # ANA ÖLÇÜT ilk çarpma noktası; durduğu yer (sekme/kayma) sadece ek bilgi
-            print(f"  İSABET: {'ARABAYA ÇARPTI ✔' if hit else 'ıska ✘'} (ilk temas merkeze {hit_dist:.2f} m)"
+            label = {"hedef": "HEDEF ARABAYA ÇARPTI ✔", "baska_araba": "başka arabaya çarptı ✘",
+                     "agac_vb": "ağaca/başka nesneye çarptı ✘", "yer": "yere düştü ✘"}[kind]
+            print(f"  İSABET: {label} (ilk temas hedef merkezine {hit_dist:.2f} m)"
                   f"  |  ek: {'üstünde kaldı' if on_roof else 'sekip düştü'}"
                   f" (durduğu yer merkeze {dist:.2f} m)")
-            results.append({"deneme": i, "sonuc": "isabet" if hit else "iska", "ustunde_kaldi": on_roof,
+            results.append({"deneme": i, "sonuc": "isabet" if hit else "iska", "ilk_temas": kind,
+                            "hizalama_m": round(align, 3), "ustunde_kaldi": on_roof,
                             "vurus": hit, "vurus_merkeze_m": round(hit_dist, 3),
                             "merkeze_uzaklik_m": round(dist, 3), "boyuna_m": round(lx, 3),
                             "enine_m": round(ly, 3), "sure_s": round(time.time() - t_start, 1)})
@@ -237,7 +288,10 @@ def main():
     hits = sum(r["sonuc"] == "isabet" for r in results)
     stayed = sum(bool(r.get("ustunde_kaldi")) for r in results)
     print(f"\n=== SONUÇ ({args.irtifa:.0f} m, {'YOLO' if model else 'Unreal etiketi'}) ===")
-    print(f"İsabet (ilk temas arabada): {hits}/{len(results)}")
+    print(f"İsabet (ilk temas hedef arabada): {hits}/{len(results)}")
+    kinds = [r.get("ilk_temas", r["sonuc"]) for r in results]
+    print("Dağılım: " + ", ".join(f"{k}={kinds.count(k)}" for k in
+                                  ("hedef", "baska_araba", "agac_vb", "yer", "gorulmedi")))
     print(f"Ek: paket arabanın üstünde kaldı: {stayed}/{len(results)}")
     if measured:
         d = [r["vurus_merkeze_m"] for r in measured]
@@ -249,7 +303,8 @@ def main():
     out.mkdir(exist_ok=True)
     f = out / f"drop_{datetime.now():%Y%m%d_%H%M%S}_{args.irtifa:.0f}m.csv"
     with f.open("w", newline="", encoding="utf-8") as fh:
-        wr = csv.DictWriter(fh, fieldnames=["deneme", "sonuc", "vurus", "vurus_merkeze_m", "ustunde_kaldi",
+        wr = csv.DictWriter(fh, fieldnames=["deneme", "sonuc", "ilk_temas", "hizalama_m", "vurus",
+                                            "vurus_merkeze_m", "ustunde_kaldi",
                                             "merkeze_uzaklik_m", "boyuna_m", "enine_m", "sure_s"])
         wr.writeheader()
         wr.writerows(results)

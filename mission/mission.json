@@ -14,7 +14,7 @@
   "target_mesh_patterns": ["*Car*", "*Vehicle*"],
   "helipad_mesh_patterns": ["*Helipad*"],
   "class_names": ["car"],
-  "capture_interval_s": 0.5,
+  "capture_interval_s": 1.2,
   "detection_radius_m": 80,
   "randomize_weather": true
 }

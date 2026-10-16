@@ -11,6 +11,7 @@ Durdurmak için Ctrl+C (o ana kadar kaydedilenler kalır).
 import argparse
 import json
 import math
+import time
 
 import numpy as np
 from cosysairsim.utils import euler_to_quaternion
@@ -58,6 +59,27 @@ def scatter_cars(client, scene, landing, rng):
         pose = airsim.Pose(airsim.Vector3r(x, y, z), euler_to_quaternion(0, 0, rng.uniform(-math.pi, math.pi)))
         if not client.simSetObjectPose(name, pose, True):
             print(f"  uyarı: {name} taşınamadı (harita scriptini tekrar çalıştır)")
+        paints = scene.get("paint_materials")
+        if paints:  # gövde (malzeme yuvası 0) rengini değiştir: model renge değil şekle odaklansın
+            client.simSetObjectMaterial(name, paints[rng.integers(len(paints))], 0)
+
+
+def hover_shots(client, cfg, scene, rec, rng, z, n_cars=3, per_car=2):
+    """Birkaç arabanın üstünde (biraz kaydırarak) dümdüz durup çekim yapar.
+
+    Uçarken çekilen karelerde drone eğik ve arabalar çoğu zaman kenarda; bırakma
+    sırasında ise drone durgun ve araba merkezde. Model bu açıyı da görmeli.
+    """
+    from fly_mission import get_boxes, get_rgb  # noqa: döngüsel import olmasın diye burada
+    cam = cfg["camera"]
+    for i in rng.choice(len(scene["cars"]), size=min(n_cars, len(scene["cars"])), replace=False):
+        p = client.simGetObjectPose(scene["cars"][i]).position
+        for _ in range(per_car):
+            ox, oy = rng.uniform(-6, 6, size=2)
+            client.moveToPositionAsync(p.x_val + ox, p.y_val + oy, z, 5).join()
+            client.hoverAsync().join()
+            time.sleep(0.8)
+            rec.save(get_rgb(client, cam), get_boxes(client, cam))
 
 
 def random_route(rng, scene, n=5):
@@ -92,7 +114,8 @@ def main():
             # ormanda ağaçların üstünde kal (en uzun ladin ~17 m)
             lo = scene.get("cruise_alt_m", 15)
             z = scene["ground_z_ned"] - rng.uniform(lo, lo + 12)
-            found = fly_once(client, cfg, rec, None, random_route(rng, scene), z, rng)
+            found = fly_once(client, cfg, rec, None, random_route(rng, scene), z, rng,
+                             before_landing=lambda c: hover_shots(c, cfg, scene, rec, rng, z))
             total_imgs += rec.count
             print(f"Tur {i}: {rec.count} görüntü, {len(found)} karede araba. Toplam: {total_imgs}")
             if rec.count < 5:

@@ -11,13 +11,20 @@ VAL_RATIO = 0.15
 images = sorted(RAW.glob("*/images/*.jpg"))
 if not images:
     raise SystemExit("dataset/raw içinde görüntü yok, önce bir uçuş yap.")
+
+# Bölme KARE değil TUR (oturum klasörü) bazında: art arda kareler neredeyse aynı olduğu için
+# kare bazında bölünce doğrulama eğitimin kopyası oluyor ve başarı olduğundan yüksek çıkıyor
+# (orman modelinde val mAP50 0.81 gösterip canlı sahnede arabaları kaçırdı).
+sessions = sorted({img.parent.parent.name for img in images})
 random.seed(0)
-random.shuffle(images)
+random.shuffle(sessions)
+val_sessions = set(sessions[:max(1, round(len(sessions) * VAL_RATIO))])
 
 shutil.rmtree(OUT, ignore_errors=True)
-n_val = int(len(images) * VAL_RATIO)
-for i, img in enumerate(images):
-    split = "val" if i < n_val else "train"
+n_val = 0
+for img in images:
+    split = "val" if img.parent.parent.name in val_sessions else "train"
+    n_val += split == "val"
     label = img.parent.parent / "labels" / f"{img.stem}.txt"
     name = f"{img.parent.parent.name}_{img.stem}"
     for sub, src, ext in (("images", img, ".jpg"), ("labels", label, ".txt")):

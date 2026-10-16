@@ -35,8 +35,8 @@ class Recorder:
         for x1, y1, x2, y2, _ in boxes:
             x1, x2 = np.clip([x1, x2], 0, w)
             y1, y2 = np.clip([y1, y2], 0, h)
-            if (x2 - x1) < 4 or (y2 - y1) < 4:
-                continue  # kadrajın dışında kalmış veya çok küçük
+            if (x2 - x1) < 12 or (y2 - y1) < 12:
+                continue  # kenarda kırıntı kalmış ya da çok küçük: öğrenilemez, skoru haksız düşürür
             lines.append(f"0 {(x1 + x2) / 2 / w:.6f} {(y1 + y2) / 2 / h:.6f} "
                          f"{(x2 - x1) / w:.6f} {(y2 - y1) / h:.6f}")
         name = f"{self.count:06d}"
@@ -172,8 +172,8 @@ def main():
         print(f"{rec.count} görüntü kaydedildi: {rec.dir}")
 
 
-def fly_once(client, cfg, rec, model, waypoints, z, rng):
-    """Tek tur: kalk, waypoint'leri gez (kaydederek), helipad'e hassas in."""
+def fly_once(client, cfg, rec, model, waypoints, z, rng, before_landing=None):
+    """Tek tur: kalk, waypoint'leri gez (kaydederek), [ek iş], helipad'e hassas in."""
     setup_detection(client, cfg["camera"], cfg["target_mesh_patterns"], cfg["detection_radius_m"])
     found = []
     v = cfg["speed"]
@@ -187,6 +187,8 @@ def fly_once(client, cfg, rec, model, waypoints, z, rng):
         randomize_weather(client, rng)
     print(f"{len(waypoints)} waypoint geziliyor ({-z:.0f} m irtifa)")
     fly_path(client, waypoints, z, v, cfg, rec, model, found)
+    if before_landing is not None:
+        before_landing(client)
 
     lx, ly = cfg["landing"]
     print(f"İniş noktasına gidiliyor: ({lx}, {ly})")
