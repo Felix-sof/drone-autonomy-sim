@@ -14,6 +14,8 @@ Ortak arayüz:
     velocity_body(vx, vy, vz)             gövde ekseninde hız komutu (yenilenene kadar sürer)
     velocity_ned(vn, ve, vd)              dünya ekseninde hız komutu (eğimden etkilenmez)
     attitude() -> (roll, pitch, yaw)      radyan; kamera eğim telafisi için
+    height_agl() -> m                     zeminden yükseklik (düz arazi; PX4'te kalkış noktasına göre)
+    battery() -> 0..1 ya da None          kalan pil oranı
     hover()                               olduğu yerde dur
     land()                                in, motorları kapat (bekler)
     position() -> (n, e, d)
@@ -54,22 +56,25 @@ class Vehicle:
 class AirSimVehicle(Vehicle):
     """AirSim SimpleFlight. Kamera ve sahne için aynı istemci (client) kullanılabilir."""
 
-    def __init__(self, client):
+    def __init__(self, client, ground_z=0.0):
+        """ground_z: zeminin AirSim NED z'si. AirSim orijini PlayerStart (zeminin ~0.9 m üstü);
+        bu sınıf d'yi zemine göre verir/alır ki PX4 (orijin = yerdeki kalkış noktası) ile aynı olsun."""
         from sim_client import airsim
         self.airsim = airsim
         self.c = client
+        self.ground_z = ground_z
 
     def arm_takeoff(self, alt_m):
         self.c.enableApiControl(True)
         self.c.armDisarm(True)
         self.c.takeoffAsync().join()
-        self.c.moveToZAsync(-alt_m, 3).join()
+        self.c.moveToZAsync(-alt_m + self.ground_z, 3).join()
 
     def goto(self, n, e, d, speed, tol=1.0):
-        self.c.moveToPositionAsync(n, e, d, speed).join()
+        self.c.moveToPositionAsync(n, e, d + self.ground_z, speed).join()
 
     def start_goto(self, n, e, d, speed):
-        self.c.moveToPositionAsync(n, e, d, speed)
+        self.c.moveToPositionAsync(n, e, d + self.ground_z, speed)
 
     def velocity_body(self, vx, vy, vz):
         self.c.moveByVelocityBodyFrameAsync(vx, vy, vz, 0.5)
@@ -94,11 +99,17 @@ class AirSimVehicle(Vehicle):
 
     def position(self):
         p = self.c.getMultirotorState().kinematics_estimated.position
-        return p.x_val, p.y_val, p.z_val
+        return p.x_val, p.y_val, p.z_val - self.ground_z
 
     def velocity(self):
         v = self.c.getMultirotorState().kinematics_estimated.linear_velocity
         return v.x_val, v.y_val, v.z_val
+
+    def height_agl(self):
+        return -self.position()[2]
+
+    def battery(self):
+        return None  # SimpleFlight pil modellemiyor
 
     def release(self):
         self.c.enableApiControl(False)
@@ -113,7 +124,7 @@ class Px4Vehicle(Vehicle):
     Offboard modunda MAVSDK son hedefi otopilota sürekli (20 Hz) yeniden gönderir.
     """
 
-    def __init__(self, address="udp://:14540", connect_timeout=60):
+    def __init__(self, address="udp://:14550", connect_timeout=60):
         from mavsdk import System
         self._loop = asyncio.new_event_loop()
         threading.Thread(target=self._loop.run_forever, daemon=True).start()
@@ -122,6 +133,8 @@ class Px4Vehicle(Vehicle):
         self._vel = (0.0, 0.0, 0.0)
         self._in_air = False
         self._att = (0.0, 0.0, 0.0)
+        self._got_pos = False
+        self._battery = None
         self._goto_task = None
         self._run(self._connect(address), timeout=connect_timeout)
 
@@ -141,15 +154,23 @@ class Px4Vehicle(Vehicle):
         self._loop.create_task(self._watch_position())
         self._loop.create_task(self._watch_in_air())
         self._loop.create_task(self._watch_attitude())
+        self._loop.create_task(self._watch_battery())
+        while not self._got_pos:      # ilk telemetri gelmeden konum (0, 0, 0) görünmesin
+            await asyncio.sleep(0.05)
 
     async def _watch_position(self):
         async for pv in self.drone.telemetry.position_velocity_ned():
             self._pos = (pv.position.north_m, pv.position.east_m, pv.position.down_m)
             self._vel = (pv.velocity.north_m_s, pv.velocity.east_m_s, pv.velocity.down_m_s)
+            self._got_pos = True
 
     async def _watch_attitude(self):
         async for q in self.drone.telemetry.attitude_quaternion():
             self._att = quat_to_euler(q.w, q.x, q.y, q.z)
+
+    async def _watch_battery(self):
+        async for b in self.drone.telemetry.battery():
+            self._battery = b.remaining_percent / 100.0 if b.remaining_percent > 1.0 else b.remaining_percent
 
     async def _watch_in_air(self):
         async for in_air in self.drone.telemetry.in_air():
@@ -253,6 +274,12 @@ class Px4Vehicle(Vehicle):
 
     def velocity(self):
         return self._vel
+
+    def height_agl(self):
+        return -self._pos[2]  # yerel orijin kalkış noktası (yerde)
+
+    def battery(self):
+        return self._battery
 
     def release(self):
         pass

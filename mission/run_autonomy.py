@@ -1,0 +1,100 @@
+"""Otonom görevi simülasyonda çalıştırır: uçuşu AirSim ya da PX4 yapar, görev çekirdeği aynı.
+
+  python mission/run_autonomy.py --model C:/UE/drone_runs/car_forest2/weights/best.pt              # AirSim
+  python mission/run_autonomy.py --model ... --backend px4                                        # PX4 SITL
+
+PX4 modunda: airsim/settings_px4.json yüklü olmalı, Unreal Play açık, PX4 SITL WSL'de çalışıyor.
+Kamera karesi, paketin fiziği ve isabet değerlendirmesi her iki modda AirSim'den gelir;
+gerçek drone'da bunların yerini kamera sürücüsü ve GripperPayload alır.
+"""
+import argparse
+import json
+import math
+from datetime import datetime
+
+import numpy as np
+
+import drop_test
+import fly_mission
+from autonomy import search_and_deliver
+from collect_data import area, scatter_cars
+from drop_test import classify_impact, wait_until_rest
+from payload import SimPayload
+from perception import CarDetector
+from sim_client import ROOT, airsim, get_rgb, load_mission
+
+
+def nearest_car(client, cars, x, y):
+    return min(((c, math.hypot(client.simGetObjectPose(c).position.x_val - x,
+                               client.simGetObjectPose(c).position.y_val - y)) for c in cars), key=lambda t: t[1])
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", required=True)
+    ap.add_argument("--backend", choices=["airsim", "px4"], default="airsim")
+    ap.add_argument("--px4-address", default="udp://:14550")
+    ap.add_argument("--teslimat", type=int, default=3)
+    ap.add_argument("--irtifa", type=float, default=25.0)
+    ap.add_argument("--hiz", type=float, default=5.0)
+    ap.add_argument("--goster", action="store_true")
+    args = ap.parse_args()
+    fly_mission.SHOW_PREVIEW = args.goster
+
+    cfg = load_mission()
+    scene = json.loads((ROOT / "mission" / "scene_objects.json").read_text(encoding="utf-8"))
+    G = scene["ground_z_ned"]
+    drop_test.GROUND_Z = G
+    cam = cfg["camera"]
+
+    client = airsim.MultirotorClient()
+    client.confirmConnection()
+    if args.backend == "airsim":
+        from vehicle import AirSimVehicle
+        vehicle = AirSimVehicle(client, ground_z=G)
+    else:
+        from vehicle import Px4Vehicle
+        print(f"PX4'e bağlanılıyor ({args.px4_address})...")
+        vehicle = Px4Vehicle(args.px4_address)
+
+    scatter_cars(client, scene, cfg["landing"], np.random.default_rng())  # her görev yeni sahne
+    detector = CarDetector(args.model)
+    payload = SimPayload(client)
+
+    def on_drop(pkg):  # sadece değerlendirme: Unreal'in gerçek araba konumlarıyla
+        _, impact = wait_until_rest(client, pkg, cam)
+        car, dist = nearest_car(client, scene["cars"], impact[0], impact[1])
+        kind = classify_impact(client, scene["cars"], car, impact)
+        client.simDestroyObject(pkg)
+        text = {"hedef": "ARABAYA ÇARPTI ✔", "baska_araba": "ARABAYA ÇARPTI ✔",
+                "agac_vb": "ağaca/nesneye çarptı ✘", "yer": "yere düştü ✘"}[kind]
+        return {"isabet": kind in ("hedef", "baska_araba"), "ilk_temas": kind, "araba": car,
+                "merkeze_m": round(dist, 2), "sonuc_metni": f"{text} (merkeze {dist:.2f} m)"}
+
+    try:
+        results, marker, total, abort_reason = search_and_deliver(
+            vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
+            alt=args.irtifa, deliveries=args.teslimat, speed=args.hiz,
+            landing=tuple(cfg["landing"]), on_drop=on_drop)
+    finally:
+        vehicle.release()
+
+    p = client.simGetVehiclePose().position   # iniş değerlendirmesi (AirSim koordinatı)
+    landing_err = math.hypot(p.x_val - cfg["landing"][0], p.y_val - cfg["landing"][1])
+    hits = sum(r.get("isabet", False) for r in results)
+    unique = len({r["araba"] for r in results if r.get("isabet")})
+    print(f"\n=== OTONOM GÖREV ({args.backend.upper()}) ===")
+    print(f"Teslimat: {len(results)}  |  isabet: {hits}/{len(results)}  |  farklı araba: {unique}"
+          f"  |  yanlış alarm: {len(results) - hits}")
+    print(f"İniş: {'ArUco işaretçisiyle' if marker else 'işaretçisiz'}, helipad merkezine {landing_err:.2f} m")
+    print(f"Toplam süre: {total:.0f} s" + (f"  |  İPTAL: {abort_reason}" if abort_reason else ""))
+    out = ROOT / "results" / f"autonomy_{args.backend}_{datetime.now():%Y%m%d_%H%M%S}.json"
+    out.write_text(json.dumps({"backend": args.backend, "model": args.model, "irtifa_m": args.irtifa,
+                               "sure_s": round(total, 1), "inis_hatasi_m": round(landing_err, 2),
+                               "inis_isaretci": marker, "iptal": abort_reason, "teslimatlar": results},
+                              indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"Kaydedildi: {out}")
+
+
+if __name__ == "__main__":
+    main()

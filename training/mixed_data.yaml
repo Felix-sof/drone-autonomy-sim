@@ -1,0 +1,10 @@
+# Karma eğitim: simülasyon (orman, dik bakış) + gerçek drone görüntüleri (VisDrone car+van)
+path: C:/UE
+train:
+  - drone_data/yolo/images/train
+  - visdrone/yolo_car/images/train
+val:
+  - drone_data/yolo/images/val
+  - visdrone/yolo_car/images/val
+names:
+  0: car

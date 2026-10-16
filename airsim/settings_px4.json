@@ -1,0 +1,36 @@
+{
+  "SettingsVersion": 2.0,
+  "SimMode": "Multirotor",
+  "ClockType": "SteppableClock",
+  "ViewMode": "SpringArmChase",
+  "Vehicles": {
+    "Drone1": {
+      "VehicleType": "PX4Multirotor",
+      "UseSerial": false,
+      "LockStep": true,
+      "UseTcp": true,
+      "TcpPort": 4560,
+      "ControlIp": "remote",
+      "ControlPortLocal": 14540,
+      "ControlPortRemote": 14580,
+      "LocalHostIp": "127.0.0.1",
+      "X": 0, "Y": 0, "Z": 0,
+      "Parameters": {
+        "NAV_RCL_ACT": 0,
+        "NAV_DLL_ACT": 0,
+        "COM_RCL_EXCEPT": 4,
+        "COM_OBL_RC_ACT": 1,
+        "MPC_XY_VEL_MAX": 6
+      },
+      "Cameras": {
+        "bottom_cam": {
+          "X": 0.0, "Y": 0.0, "Z": 0.3,
+          "Pitch": -90.0, "Roll": 0.0, "Yaw": 0.0,
+          "CaptureSettings": [
+            { "ImageType": 0, "Width": 1280, "Height": 720, "FOV_Degrees": 90 }
+          ]
+        }
+      }
+    }
+  }
+}

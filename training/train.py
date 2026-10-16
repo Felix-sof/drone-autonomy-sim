@@ -19,7 +19,7 @@ def run(args):
 
     model = YOLO(args.model)
     model.train(
-        data=DATA,
+        data=args.data,
         epochs=args.epochs,
         imgsz=960,    # yukarıdan bakınca arabalar küçük kalıyor, çözünürlüğü yüksek tut
         batch=args.batch,
@@ -38,6 +38,7 @@ if __name__ == "__main__":  # Windows'ta veri yükleyici işçileri için gerekl
     ap.add_argument("--epochs", type=int, default=60)
     ap.add_argument("--name", default="car")
     ap.add_argument("--batch", type=int, default=8)
+    ap.add_argument("--data", default=DATA, help="ör. C:/UE/mixed/data.yaml (simülasyon + VisDrone)")
     ap.add_argument("--no-plots", action="store_true", help="Eğitim grafiklerini çizme")
     args = ap.parse_args()
 
