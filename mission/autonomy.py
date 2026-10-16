@@ -33,7 +33,8 @@ MAX_MISSES = 10       # takipte hedef bu kadar ardışık karede görünmezse va
 FENCE_MARGIN_M = 15   # görev alanının bu kadar dışına çıkılırsa görev iptal (geofence)
 MIN_BATTERY = 0.25    # kalan pil bunun altına düşerse eve dön
 MAX_MISSION_S = 900   # görev süresi sınırı (pil süresine göre ayarla)
-DROPZONE_MAX_M = 8.0  # teslimat işaretçisi arabanın en fazla bu kadar yakınında aranır
+DROPZONE_MAX_M = 5.5  # teslimat işaretçisi arabanın en fazla bu kadar yakınında (kendi noktası 3.8 m'de;
+                      # 8 m'de bir araç komşu aracın işaretçisini seçebiliyordu)
 
 
 class Abort(Exception):

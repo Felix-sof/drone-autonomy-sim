@@ -1,6 +1,7 @@
 """dataset/raw altındaki tüm uçuşları birleştirip train/val olarak ayırır (YOLO formatı)."""
 import random
 import shutil
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,7 +33,9 @@ for img in images:
         dst.mkdir(parents=True, exist_ok=True)
         shutil.copy(src, dst / f"{name}{ext}")
 
+# sınıf isimleri: python training/prepare_dataset.py car,person   (varsayılan: car)
+NAMES = (sys.argv[1] if len(sys.argv) > 1 else "car").split(",")
+names = "".join(f"  {i}: {n}\n" for i, n in enumerate(NAMES))
 (OUT / "data.yaml").write_text(
-    f"path: {OUT.as_posix()}\ntrain: images/train\nval: images/val\nnames:\n  0: car\n",
-    encoding="utf-8")
+    f"path: {OUT.as_posix()}\ntrain: images/train\nval: images/val\nnames:\n{names}", encoding="utf-8")
 print(f"{len(images) - n_val} train, {n_val} val -> {OUT}")

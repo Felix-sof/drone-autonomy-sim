@@ -1,0 +1,51 @@
+{
+  "backend": "px4",
+  "ruzgar": "0,0",
+  "model": "C:/UE/drone_runs/car_mixed2/weights/best.pt",
+  "irtifa_m": 25.0,
+  "sure_s": 167.0,
+  "inis_hatasi_m": 0.04,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": -27.07,
+      "e": -23.08,
+      "guven": 0.63,
+      "isaretci": 2,
+      "zaman_s": 48.4,
+      "isabet": true,
+      "araba": "StaticMeshActor_642",
+      "isaretci_merkezine_m": 0.51,
+      "araca_carpti": false,
+      "sonuc_metni": "TESLİMAT NOKTASINA ✔ (işaretçi #2 merkezine 0.51 m)"
+    },
+    {
+      "no": 2,
+      "n": 3.04,
+      "e": -36.98,
+      "guven": 0.57,
+      "isaretci": 9,
+      "zaman_s": 90.1,
+      "isabet": true,
+      "araba": "StaticMeshActor_649",
+      "isaretci_merkezine_m": 0.59,
+      "araca_carpti": false,
+      "sonuc_metni": "TESLİMAT NOKTASINA ✔ (işaretçi #9 merkezine 0.59 m)"
+    },
+    {
+      "no": 3,
+      "n": 25.75,
+      "e": -17.51,
+      "guven": 0.51,
+      "isaretci": 5,
+      "zaman_s": 126.1,
+      "isabet": true,
+      "araba": "StaticMeshActor_645",
+      "isaretci_merkezine_m": 0.52,
+      "araca_carpti": false,
+      "sonuc_metni": "TESLİMAT NOKTASINA ✔ (işaretçi #5 merkezine 0.52 m)"
+    }
+  ]
+}

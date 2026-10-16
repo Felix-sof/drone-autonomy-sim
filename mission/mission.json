@@ -31,13 +31,15 @@
   ],
   "target_mesh_patterns": [
     "*Car*",
-    "*Vehicle*"
+    "*Vehicle*",
+    "*Mannequin*"
   ],
   "helipad_mesh_patterns": [
     "*Helipad*"
   ],
   "class_names": [
-    "car"
+    "car",
+    "person"
   ],
   "capture_interval_s": 1.2,
   "detection_radius_m": 80,

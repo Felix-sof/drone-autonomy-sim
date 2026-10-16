@@ -54,17 +54,24 @@ def pixel_to_ground(shape, px, py, height, roll, pitch, yaw, hfov_deg=90.0):
 
 
 class CarDetector:
-    """YOLO araba tespiti. detect(img) -> [(x1, y1, x2, y2, güven), ...]"""
+    """YOLO tespiti. detect(img, conf, classes) -> [(x1, y1, x2, y2, güven, sınıf), ...]
 
-    def __init__(self, model_path, conf=0.3, imgsz=960):
+    Sınıflar (iki sınıflı model): 0 araba, 1 kişi. classes=None: varsayılan sınıflar
+    (default_classes; araba görevleri için [0]).
+    """
+
+    def __init__(self, model_path, conf=0.3, imgsz=960, default_classes=(0,)):
         from ultralytics import YOLO
         self.model = YOLO(model_path)
         self.conf = conf
         self.imgsz = imgsz
+        self.default_classes = list(default_classes)
 
-    def detect(self, img, conf=None):
-        r = self.model.predict(img, conf=self.conf if conf is None else conf, imgsz=self.imgsz, verbose=False)[0]
-        return [(*b, c) for b, c in zip(r.boxes.xyxy.cpu().tolist(), r.boxes.conf.cpu().tolist())]
+    def detect(self, img, conf=None, classes=None):
+        r = self.model.predict(img, conf=self.conf if conf is None else conf, imgsz=self.imgsz, verbose=False,
+                               classes=self.default_classes if classes is None else list(classes))[0]
+        return [(*b, c, int(k)) for b, c, k in zip(r.boxes.xyxy.cpu().tolist(), r.boxes.conf.cpu().tolist(),
+                                                    r.boxes.cls.cpu().tolist())]
 
 
 def box_center(b):

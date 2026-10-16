@@ -17,7 +17,7 @@ import numpy as np
 import drop_test
 import fly_mission
 from autonomy import search_and_deliver
-from collect_data import area, scatter_cars
+from collect_data import area, scatter_cars, scatter_people
 from drop_test import classify_impact, wait_until_rest
 from payload import SimPayload
 from perception import CarDetector
@@ -41,8 +41,10 @@ def main():
     ap.add_argument("--ruzgar", default="0,0", help="sabit rüzgar, m/s: kuzey,doğu (ör. 6,3)")
     ap.add_argument("--isaretcisiz", type=float, default=0.0,
                     help="dropzone modunda araçların bu oranının teslimat işaretçisini kaldır (negatif test)")
-    ap.add_argument("--mod", choices=["dropzone", "roof"], default="dropzone",
-                    help="dropzone: aracın yanındaki ArUco teslimat noktasına; roof: araç üstüne")
+    ap.add_argument("--mod", choices=["dropzone", "roof", "sar"], default="dropzone",
+                    help="dropzone: aracın yanındaki ArUco teslimat noktasına; roof: araç üstüne; "
+                         "sar: kişi ara, güvenli mesafede yardım paketi bırak (iki sınıflı model)")
+    ap.add_argument("--imgsz", type=int, default=960, help="tespit çözünürlüğü (sar için 1280 önerilir)")
     args = ap.parse_args()
     fly_mission.SHOW_PREVIEW = args.goster
 
@@ -66,7 +68,10 @@ def main():
         print(f"PX4'e bağlanılıyor ({args.px4_address})...")
         vehicle = Px4Vehicle(args.px4_address)
 
-    scatter_cars(client, scene, cfg["landing"], np.random.default_rng())  # her görev yeni sahne
+    rng_scene = np.random.default_rng()
+    placed = scatter_cars(client, scene, cfg["landing"], rng_scene)  # her görev yeni sahne
+    if scene.get("people"):
+        scatter_people(client, scene, rng_scene, list(placed or []))
     removed = []
     if args.isaretcisiz > 0 and "dropzones" in scene:   # bu araçlara teslimat yapılmamalı
         rng_rm = np.random.default_rng()
@@ -79,7 +84,7 @@ def main():
     client.simSetWind(airsim.Vector3r(wn, we, 0))   # drone dinamiğini etkiler (paket fiziğini değil)
     if wn or we:
         print(f"Rüzgar: kuzey {wn} m/s, doğu {we} m/s ({math.hypot(wn, we):.1f} m/s)")
-    detector = CarDetector(args.model)
+    detector = CarDetector(args.model, imgsz=args.imgsz)
     payload = SimPayload(client)
 
     def on_drop(pkg, marker_id=None):  # sadece değerlendirme: Unreal'in gerçek konumlarıyla
@@ -104,6 +109,45 @@ def main():
                 "agac_vb": "ağaca/nesneye çarptı ✘", "yer": "yere düştü ✘"}[kind]
         return {"isabet": kind in ("hedef", "baska_araba"), "ilk_temas": kind, "araba": car,
                 "merkeze_m": round(dist, 2), "sonuc_metni": f"{text} (merkeze {dist:.2f} m)"}
+
+    def on_drop_sar(pkg):  # sadece değerlendirme: kişilere gerçek mesafe
+        import sar
+        _, impact = wait_until_rest(client, pkg, cam)
+        client.simDestroyObject(pkg)
+        dists = [math.hypot(client.simGetObjectPose(pp).position.x_val - impact[0],
+                            client.simGetObjectPose(pp).position.y_val - impact[1]) for pp in scene["people"]]
+        nearest = min(dists)
+        car, _ = nearest_car(client, scene["cars"], impact[0], impact[1])
+        kind = classify_impact(client, scene["cars"], car, impact)   # yer / ağaç / araç
+        dangerous = nearest < sar.SAFE_MIN_M
+        ok = (not dangerous) and nearest <= 12.0 and kind == "yer"
+        text = ("TEHLİKELİ: kişiye çok yakın ✘" if dangerous else
+                ("GÜVENLİ TESLİMAT ✔" if ok else ("ağaca/araca düştü ✘" if kind != "yer" else "kişiye çok uzak ✘")))
+        return {"isabet": ok, "tehlikeli": dangerous, "kisiye_m": round(nearest, 2), "zemin": kind,
+                "araba": car, "sonuc_metni": f"{text} (en yakın kişiye {nearest:.1f} m)"}
+
+    if args.mod == "sar":
+        import sar
+        try:
+            results, marker, total, abort_reason = sar.sar_mission(
+                vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
+                alt=args.irtifa, packages=args.teslimat, speed=args.hiz,
+                landing=tuple(cfg["landing"]), on_drop=on_drop_sar)
+        finally:
+            vehicle.release()
+        p = client.simGetVehiclePose().position
+        landing_err = math.hypot(p.x_val - cfg["landing"][0], p.y_val - cfg["landing"][1])
+        ok = sum(r.get("isabet", False) for r in results)
+        bad = sum(r.get("tehlikeli", False) for r in results)
+        print(f"\n=== SAR GÖREVİ ({args.backend.upper()}) ===")
+        print(f"Yardım paketi: {len(results)}  |  güvenli teslimat: {ok}/{len(results)}  |  TEHLİKELİ: {bad}")
+        print(f"İniş: {'ArUco işaretçisiyle' if marker else 'işaretçisiz'}, helipad merkezine {landing_err:.2f} m")
+        print(f"Toplam süre: {total:.0f} s" + (f"  |  İPTAL: {abort_reason}" if abort_reason else ""))
+        out = ROOT / "results" / f"sar_{args.backend}_{datetime.now():%Y%m%d_%H%M%S}.json"
+        out.write_text(json.dumps({"backend": args.backend, "model": args.model, "sure_s": round(total, 1),
+                                   "paketler": results}, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"Kaydedildi: {out}")
+        return
 
     try:
         results, marker, total, abort_reason = search_and_deliver(

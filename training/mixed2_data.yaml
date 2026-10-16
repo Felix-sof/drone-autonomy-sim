@@ -1,0 +1,11 @@
+# İki sınıflı karma eğitim: simülasyon (orman, araba + kişi) + gerçek drone görüntüleri (VisDrone)
+path: C:/UE
+train:
+  - drone_data/yolo/images/train
+  - visdrone/yolo_carperson/images/train
+val:
+  - drone_data/yolo/images/val
+  - visdrone/yolo_carperson/images/val
+names:
+  0: car
+  1: person

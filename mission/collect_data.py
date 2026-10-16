@@ -102,8 +102,9 @@ def hover_shots(client, cfg, scene, rec, rng, z, n_cars=3, per_car=2):
     """
     from fly_mission import get_boxes, get_rgb  # noqa: döngüsel import olmasın diye burada
     cam = cfg["camera"]
-    for i in rng.choice(len(scene["cars"]), size=min(n_cars, len(scene["cars"])), replace=False):
-        p = client.simGetObjectPose(scene["cars"][i]).position
+    objs = list(scene["cars"]) + list(scene.get("people", []))   # kişiler küçük: onlara da yakından bak
+    for i in rng.choice(len(objs), size=min(n_cars + 2, len(objs)), replace=False):
+        p = client.simGetObjectPose(objs[i]).position
         for _ in range(per_car):
             ox, oy = rng.uniform(-6, 6, size=2)
             client.moveToPositionAsync(p.x_val + ox, p.y_val + oy, z, 5).join()

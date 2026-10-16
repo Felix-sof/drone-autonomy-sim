@@ -37,7 +37,7 @@ class Recorder:
             y1, y2 = np.clip([y1, y2], 0, h)
             if (x2 - x1) < 12 or (y2 - y1) < 12:
                 continue  # kenarda kırıntı kalmış ya da çok küçük: öğrenilemez, skoru haksız düşürür
-            cls = 1 if "Mannequin" in name else 0   # 0: araba, 1: kişi (mesh adına göre)
+            cls = 1 if ("Mannequin" in name or "Skeletal" in name) else 0   # 0: araba, 1: kişi
             lines.append(f"{cls} {(x1 + x2) / 2 / w:.6f} {(y1 + y2) / 2 / h:.6f} "
                          f"{(x2 - x1) / w:.6f} {(y2 - y1) / h:.6f}")
         name = f"{self.count:06d}"

@@ -28,6 +28,8 @@ AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştire
 | **Görüntüyle hassas iniş** (ArUco, eğim telafili, simülatör bilgisi yok), 25 m, 2-6 m kaydırarak | iniş hatası **0-1 cm** |
 | Aynı modelin **gerçek** drone görüntülerinde (VisDrone val, 548 görüntü, 16k araç) başarısı | mAP50 **0.02** — sadece simülasyonla eğitilen model gerçekte çalışmıyor → karma eğitim |
 | **PX4 SITL ile tam otonom görev** (MAVLink/MAVSDK, gimbal'lı kamera, karma model), 4 görev × 3 paket | **12/12 isabet, 12 farklı araba, 0 yanlış alarm**; ArUco iniş hatası ort. **7 cm**; görev ~2.5 dk |
+| **Teslimat noktası modu** (PX4): araba bul → yanındaki numaralı ArUco noktasına bırak, 4 görev | **12/12 paket işaretçinin içinde** (merkeze ort. ~0.45 m), araca çarpan 0 |
+| Negatif test: araçların %40'ının teslimat işaretçisi kaldırıldı | işaretçisiz araca teslimat **0** (drone bırakmadan aramaya devam etti) |
 | PX4 tam görev **rüzgarda** (5 m/s ×2, 8 m/s ×1) | **9/9 isabet**, ArUco iniş 3-10 cm — *not: AirSim rüzgarı drone'u etkiliyor, düşen paketi etkilemiyor; gerçekte paket sürüklenir* |
 | Karma model (simülasyon + VisDrone) gerçek drone görüntülerinde | mAP50 **0.86** (simülasyonda 0.82) |
 
@@ -54,6 +56,13 @@ AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştire
 - **Kalan darboğaz tespit:** bırakılan her paket bir arabaya isabet ediyor; kayıplar modelin
   bazı arabaları hiç görmemesinden (recall 0.75). Sonraki adım daha çok/çeşitli veri.
 
+### Proje yönü: teslimat ve arama-kurtarma
+Paket artık aracın tavanına değil, aracın yanındaki **işaretli teslimat noktasına** bırakılıyor
+(ticari teslimat drone'ları gibi); işaretçi yoksa bırakılmıyor. Sıradaki aşama **arama-kurtarma**:
+kişiyi bul, yardım paketini **kişiden en az 5 m uzakta** açık bir zemine bırak (`mission/sar.py`).
+Hareket halindeki bir drone'dan hedefe isabet ettirmek için bırakma anı hesaplayan (balistik nişan)
+bir özellik bilinçli olarak geliştirilmiyor.
+
 ## Klasörler
 
 ```
@@ -62,6 +71,7 @@ unreal/setup_level.py           Editörde çalışır: zemin, rastgele arabalar,
 unreal/setup_level_launcher.py  Türkçe karaktersiz yoldan çağırmak için (C:\UE\setup_level.py)
 unreal/config/                  Unreal projesinin ayar dosyalarının kopyası (C:\UE\Sa\Config)
 mission/autonomy.py             TAŞINABİLİR görev çekirdeği (ara, tespit, hizala, bırak, in, güvenlik)
+mission/sar.py                  Arama-kurtarma: kişi ara, güvenli (>=5 m) açık noktaya yardım paketi
 mission/vehicle.py              Araç arayüzü: AirSimVehicle, Px4Vehicle (MAVSDK)
 mission/perception.py           YOLO tespiti + eğim telafili piksel->yer geometrisi
 mission/aruco_land.py           ArUco işaretçisiyle görüntüyle hassas iniş
