@@ -3,6 +3,7 @@
 #   bash mission/sim.sh px4      # AirSim'i PX4 moduna al, Unreal'i aç + Play, PX4 SITL'i WSL'de başlat
 #   bash mission/sim.sh airsim   # AirSim'in kendi uçuş kontrolcüsü (SimpleFlight)
 #   bash mission/sim.sh stop     # PX4'ü durdur, Unreal'i kapat
+#   bash mission/sim.sh px4 setup   # açarken haritayı da yeniden kur (unreal/setup_forest.py)
 # Gerekenler: WSL Ubuntu'da ~/PX4-Autopilot (v1.15.4, make px4_sitl_default), .wslconfig'te
 # networkingMode=mirrored (PX4 ve AirSim aynı localhost'u görsün).
 set -u
@@ -11,6 +12,7 @@ A="/c/Users/sanbe/OneDrive/Belgeler/AirSim"
 FLAGS=/c/UE/flags
 UE='C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe'
 mode=${1:-px4}
+setup=${2:-}
 
 editor_up() { tasklist | grep -qi "UnrealEditor.exe"; }
 port_up() { netstat -ano | grep -q ":$1 .*LISTEN"; }
@@ -40,6 +42,7 @@ case "$mode" in
     px4_stop; editor_stop
     if [ "$mode" = px4 ]; then cp "$D/airsim/settings_px4.json" "$A/settings.json"
     else cp "$D/airsim/settings.json" "$A/settings.json"; fi
+    [ "$setup" = setup ] && touch "$FLAGS/setup"
     editor_start
     if [ "$mode" = px4 ]; then
       for _ in $(seq 1 300); do port_up 4560 && break; sleep 2; done   # AirSim PX4'ü bekliyor

@@ -44,6 +44,21 @@ def find_marker(img):
     return None
 
 
+def find_markers(img, exclude=(MARKER_ID,)):
+    """Görüntüdeki bütün işaretçiler: [(id, merkez_px, kenar_px), ...] (varsayılan: helipad hariç)."""
+    corners, ids, _ = _detector.detectMarkers(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
+    out = []
+    if ids is None:
+        return out
+    for c, i in zip(corners, ids.ravel()):
+        if int(i) in exclude:
+            continue
+        pts = c[0]
+        side = np.mean([np.linalg.norm(pts[k] - pts[(k + 1) % 4]) for k in range(4)])
+        out.append((int(i), pts.mean(axis=0), side))
+    return out
+
+
 def marker_offset(img, marker, roll=0.0, pitch=0.0):
     """İşaretçinin drone'a göre yatay konumu (ileri_m, sağ_m; yaw yönünde) ve yükseklik (m).
 

@@ -1,0 +1,11 @@
+{
+  "backend": "px4",
+  "ruzgar": "0,0",
+  "model": "C:/UE/drone_runs/car_mixed2/weights/best.pt",
+  "irtifa_m": 25.0,
+  "sure_s": 338.5,
+  "inis_hatasi_m": 0.06,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": []
+}

@@ -39,6 +39,10 @@ def main():
     ap.add_argument("--hiz", type=float, default=5.0)
     ap.add_argument("--goster", action="store_true")
     ap.add_argument("--ruzgar", default="0,0", help="sabit rüzgar, m/s: kuzey,doğu (ör. 6,3)")
+    ap.add_argument("--isaretcisiz", type=float, default=0.0,
+                    help="dropzone modunda araçların bu oranının teslimat işaretçisini kaldır (negatif test)")
+    ap.add_argument("--mod", choices=["dropzone", "roof"], default="dropzone",
+                    help="dropzone: aracın yanındaki ArUco teslimat noktasına; roof: araç üstüne")
     args = ap.parse_args()
     fly_mission.SHOW_PREVIEW = args.goster
 
@@ -63,6 +67,14 @@ def main():
         vehicle = Px4Vehicle(args.px4_address)
 
     scatter_cars(client, scene, cfg["landing"], np.random.default_rng())  # her görev yeni sahne
+    removed = []
+    if args.isaretcisiz > 0 and "dropzones" in scene:   # bu araçlara teslimat yapılmamalı
+        rng_rm = np.random.default_rng()
+        for i in rng_rm.choice(len(scene["dropzones"]), size=round(len(scene["dropzones"]) * args.isaretcisiz),
+                               replace=False):
+            client.simSetObjectPose(scene["dropzones"][i], airsim.Pose(airsim.Vector3r(0, 0, 50), airsim.Quaternionr()), True)
+            removed.append(int(i) + 1)
+        print(f"İşaretçisi kaldırılan araçlar (teslimat YAPILMAMALI): {sorted(removed)}")
     wn, we = (float(x) for x in args.ruzgar.split(","))
     client.simSetWind(airsim.Vector3r(wn, we, 0))   # drone dinamiğini etkiler (paket fiziğini değil)
     if wn or we:
@@ -70,11 +82,24 @@ def main():
     detector = CarDetector(args.model)
     payload = SimPayload(client)
 
-    def on_drop(pkg):  # sadece değerlendirme: Unreal'in gerçek araba konumlarıyla
+    def on_drop(pkg, marker_id=None):  # sadece değerlendirme: Unreal'in gerçek konumlarıyla
         _, impact = wait_until_rest(client, pkg, cam)
+        client.simDestroyObject(pkg)
+        if args.mod == "dropzone":
+            # teslimat noktası: levhanın (2.67 m kare) içine düştü mü, araca çarptı mı
+            pad = client.simGetObjectPose(scene["dropzones"][marker_id - 1]).position
+            dx, dy = impact[0] - pad.x_val, impact[1] - pad.y_val
+            half = scene["dropzone_marker_m"] / 2 + 0.335
+            on_pad = abs(dx) <= half and abs(dy) <= half
+            car, _ = nearest_car(client, scene["cars"], impact[0], impact[1])
+            hit_car = classify_impact(client, scene["cars"], car, impact) in ("hedef", "baska_araba")
+            ok = on_pad and not hit_car
+            text = ("TESLİMAT NOKTASINA ✔" if ok else ("araca çarptı ✘" if hit_car else "noktanın dışına ✘"))
+            return {"isabet": ok, "araba": car, "isaretci_merkezine_m": round(math.hypot(dx, dy), 2),
+                    "araca_carpti": hit_car, "sonuc_metni": f"{text} (işaretçi #{marker_id} merkezine "
+                                                         f"{math.hypot(dx, dy):.2f} m)"}
         car, dist = nearest_car(client, scene["cars"], impact[0], impact[1])
         kind = classify_impact(client, scene["cars"], car, impact)
-        client.simDestroyObject(pkg)
         text = {"hedef": "ARABAYA ÇARPTI ✔", "baska_araba": "ARABAYA ÇARPTI ✔",
                 "agac_vb": "ağaca/nesneye çarptı ✘", "yer": "yere düştü ✘"}[kind]
         return {"isabet": kind in ("hedef", "baska_araba"), "ilk_temas": kind, "araba": car,
@@ -84,19 +109,22 @@ def main():
         results, marker, total, abort_reason = search_and_deliver(
             vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
             alt=args.irtifa, deliveries=args.teslimat, speed=args.hiz,
-            landing=tuple(cfg["landing"]), on_drop=on_drop)
+            landing=tuple(cfg["landing"]), on_drop=on_drop, mode=args.mod)
     finally:
         vehicle.release()
 
     p = client.simGetVehiclePose().position   # iniş değerlendirmesi (AirSim koordinatı)
     landing_err = math.hypot(p.x_val - cfg["landing"][0], p.y_val - cfg["landing"][1])
     hits = sum(r.get("isabet", False) for r in results)
-    unique = len({r["araba"] for r in results if r.get("isabet")})
-    print(f"\n=== OTONOM GÖREV ({args.backend.upper()}) ===")
+    unique = len({r.get("isaretci") or r["araba"] for r in results if r.get("isabet")})
+    print(f"\n=== OTONOM GÖREV ({args.backend.upper()}, mod: {args.mod}) ===")
     print(f"Teslimat: {len(results)}  |  isabet: {hits}/{len(results)}  |  farklı araba: {unique}"
           f"  |  yanlış alarm: {len(results) - hits}")
     print(f"İniş: {'ArUco işaretçisiyle' if marker else 'işaretçisiz'}, helipad merkezine {landing_err:.2f} m")
     print(f"Toplam süre: {total:.0f} s" + (f"  |  İPTAL: {abort_reason}" if abort_reason else ""))
+    if removed:
+        wrong = [r for r in results if r.get("isaretci") in removed]
+        print(f"İşaretçisiz araca yapılan teslimat: {len(wrong)} (0 olmalı)")
     out = ROOT / "results" / f"autonomy_{args.backend}_{datetime.now():%Y%m%d_%H%M%S}.json"
     client.simSetWind(airsim.Vector3r(0, 0, 0))
     out.write_text(json.dumps({"backend": args.backend, "ruzgar": args.ruzgar, "model": args.model, "irtifa_m": args.irtifa,

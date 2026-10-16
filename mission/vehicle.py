@@ -208,6 +208,8 @@ class Px4Vehicle(Vehicle):
     # -- arayüz -----------------------------------------------------------------------------
     def arm_takeoff(self, alt_m):
         async def go():
+            if self._in_air:  # önceki görevden havada kalmış: kalkışı atla, irtifaya çık
+                return
             await self.drone.action.set_takeoff_altitude(min(alt_m, 10.0))
             await self.drone.action.arm()
             await self.drone.action.takeoff()

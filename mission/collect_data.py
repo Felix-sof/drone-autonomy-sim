@@ -56,12 +56,42 @@ def scatter_cars(client, scene, landing, rng):
             length, width, height = rng.uniform(3.8, 5.2), rng.uniform(1.7, 2.0), rng.uniform(1.4, 1.9)
             client.simSetObjectScale(name, airsim.Vector3r(length, width, height))
             z = scene["ground_z_ned"] - height / 2
-        pose = airsim.Pose(airsim.Vector3r(x, y, z), euler_to_quaternion(0, 0, rng.uniform(-math.pi, math.pi)))
+        yaw = rng.uniform(-math.pi, math.pi)
+        pose = airsim.Pose(airsim.Vector3r(x, y, z), euler_to_quaternion(0, 0, yaw))
         if not client.simSetObjectPose(name, pose, True):
             print(f"  uyarı: {name} taşınamadı (harita scriptini tekrar çalıştır)")
+        if "dropzones" in scene:  # aracın teslimat işaretçisi yanında (genişlik ekseni boyunca)
+            dz = scene["dropzones"][scene["cars"].index(name)]
+            off = scene["dropzone_offset_m"]
+            dz_pose = airsim.Pose(airsim.Vector3r(x + off * math.cos(yaw), y + off * math.sin(yaw),
+                                                  scene["ground_z_ned"] - 0.01), airsim.Quaternionr())
+            client.simSetObjectPose(dz, dz_pose, True)
+            placed.append((x + off * math.cos(yaw), y + off * math.sin(yaw)))
         paints = scene.get("paint_materials")
         if paints:  # gövde (malzeme yuvası 0) rengini değiştir: model renge değil şekle odaklansın
             client.simSetObjectMaterial(name, paints[rng.integers(len(paints))], 0)
+    return placed
+
+
+def scatter_people(client, scene, rng, avoid):
+    """Kişileri açıklıklara dağıtır (araçlardan/teslimat noktalarından/iniş noktasından uzak).
+
+    avoid: kaçınılacak (x, y) noktaları. Ayakta olanlar dik, yatanlar yere paralel (roll 90°).
+    """
+    clearings = scene.get("clearings", [])[1:]
+    for name, pose in zip(scene.get("people", []), scene.get("people_pose", [])):
+        for _ in range(500):
+            cx, cy, cr = clearings[rng.integers(len(clearings))]
+            ang, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, max(cr - 3.0, 0.5))
+            x, y = cx + d * math.cos(ang), cy + d * math.sin(ang)
+            if all(math.hypot(x - ax, y - ay) > 6 for ax, ay in avoid) and math.hypot(x, y) > 12:
+                break
+        avoid.append((x, y))
+        yaw = rng.uniform(-math.pi, math.pi)
+        lying = pose == "lie"
+        q = euler_to_quaternion(math.pi / 2 if lying else 0.0, 0.0, yaw)
+        z = scene["ground_z_ned"] - (0.15 if lying else 0.0)
+        client.simSetObjectPose(name, airsim.Pose(airsim.Vector3r(x, y, z), q), True)
 
 
 def hover_shots(client, cfg, scene, rec, rng, z, n_cars=3, per_car=2):
@@ -109,7 +139,8 @@ def main():
     try:
         for i in range(1, args.turlar + 1):
             print(f"\n=== Tur {i}/{args.turlar} ===")
-            scatter_cars(client, scene, cfg["landing"], rng)
+            placed = scatter_cars(client, scene, cfg["landing"], rng)
+            scatter_people(client, scene, rng, list(placed or []))
             rec = Recorder()
             # ormanda ağaçların üstünde kal (en uzun ladin ~17 m)
             lo = scene.get("cruise_alt_m", 15)

@@ -24,6 +24,12 @@ FOREST_MARGIN_M = 30       # görev alanının dışına da orman uzansın
 N_CLEARINGS = 9            # iniş/araba açıklıkları (başlangıç açıklığı hariç)
 N_CARS = 10
 CRUISE_ALT_M = 25          # en uzun ağaç ~17 m; seyir irtifası bunun üstünde
+DROPZONE_OFFSET_M = 3.8    # teslimat işaretçisinin araç merkezine uzaklığı (yan taraf)
+DROPZONE_SIZE_M = 2.67     # levha (beyaz kenar dahil)
+DROPZONE_MARKER_M = 2.0    # siyah ArUco karesi
+N_PEOPLE = 8               # arama-kurtarma: açıklıklarda kişiler (ayakta / yerde yatan)
+MANNEQUIN = "/Game/PN_interactiveSpruceForest/UE4_Mannequin/Mannequin/Character/Mesh/SK_Mannequin"
+IDLE_ANIM = "/Game/PN_interactiveSpruceForest/UE4_Mannequin/Mannequin/Animations/ThirdPersonIdle"
 
 FOLDER = "DroneSim"
 GAME = "/Game/DroneSim"
@@ -53,6 +59,9 @@ def mesh_copy(src, name):
     path = f"{GAME}/{name}"
     if not lib.does_asset_exist(path):
         lib.duplicate_asset(src, path)
+        # Kaydetmezsek sadece bellekte kalır: editör otomatik kapanıp açılınca model kaybolur ve
+        # o modeli kullanan aktörler GÖRÜNMEZ olur (teslimat işaretçilerinde bu oldu).
+        lib.save_asset(path, only_if_is_dirty=False)
     return lib.load_asset(path)
 
 
@@ -244,16 +253,16 @@ for i in range(N_CARS):
     car_names.append(car.get_name())
 
 # --- 7) Helipad ve paket modeli ---
-def aruco_material():
-    """6 m helipad = 4 m ArUco (DICT_4X4_50, id 0) + 1 m beyaz kenar; unreal/assets/T_HelipadAruco.png.
+def texture_material(name):
+    """unreal/assets/T_<name>.png dokusunu içe aktarıp M_<name> malzemesi yapar (keskin kenarlı).
 
-    Drone iniş noktasını Unreal'in bilgisinden değil, bu işaretçiyi kamerayla görerek bulur
-    (gerçek hassas iniş sistemleri de böyle çalışır).
+    ArUco işaretçileri için: drone iniş/teslimat noktasını Unreal'in bilgisinden değil, işaretçiyi
+    kamerayla görerek bulur (gerçek hassas iniş ve teslimat sistemleri de böyle çalışır).
     """
-    tex_path = f"{GAME}/T_HelipadAruco"
+    tex_path = f"{GAME}/T_{name}"
     if not lib.does_asset_exist(tex_path):
         task = unreal.AssetImportTask()
-        task.filename = str(ROOT / "unreal" / "assets" / "T_HelipadAruco.png")
+        task.filename = str(ROOT / "unreal" / "assets" / f"T_{name}.png")
         task.destination_path = GAME
         task.automated = True
         task.replace_existing = True
@@ -263,11 +272,11 @@ def aruco_material():
     tex.set_editor_property("filter", unreal.TextureFilter.TF_NEAREST)        # keskin kenar
     tex.set_editor_property("mip_gen_settings", unreal.TextureMipGenSettings.TMGS_NO_MIPMAPS)
     lib.save_loaded_asset(tex)
-    path = f"{GAME}/M_HelipadAruco"
+    path = f"{GAME}/M_{name}"
     if lib.does_asset_exist(path):
         return lib.load_asset(path)
     m = unreal.AssetToolsHelpers.get_asset_tools().create_asset(
-        "M_HelipadAruco", GAME, unreal.Material, unreal.MaterialFactoryNew())
+        f"M_{name}", GAME, unreal.Material, unreal.MaterialFactoryNew())
     sample = mel.create_material_expression(m, unreal.MaterialExpressionTextureSample, -400, 0)
     sample.set_editor_property("texture", tex)
     mel.connect_material_property(sample, "RGB", unreal.MaterialProperty.MP_BASE_COLOR)
@@ -281,8 +290,55 @@ def aruco_material():
 
 pad_mesh = mesh_copy("/Engine/BasicShapes/Plane", "SM_Helipad")
 basic = "/Engine/BasicShapes/BasicShapeMaterial"
+# Helipad: 6 m = 4 m ArUco (DICT_4X4_50, id 0) + 1 m beyaz kenar.
 # Plane'in UV'si 0-1: doku tam oturur; yaw 0 -> işaretçinin "üstü" kuzey (NED x+)
-spawn(pad_mesh, ned_to_ue(lx, ly, 1), 0, (6, 6, 1), "Helipad", material=aruco_material())
+spawn(pad_mesh, ned_to_ue(lx, ly, 1), 0, (6, 6, 1), "Helipad", material=texture_material("HelipadAruco"))
+
+# Teslimat noktaları: her aracın yanında numaralı ArUco (id 1-10, 2 m işaretçi, 2.67 m levha).
+# Paket aracın tavanına değil bu işaretçiye bırakılır (teslimat drone'larının çalışma biçimi).
+dz_mesh = mesh_copy("/Engine/BasicShapes/Plane", "SM_DropZone")
+dropzones = []
+for i, name in enumerate(car_names, start=1):
+    car = next(a for a in eas.get_all_level_actors() if a.get_name() == name)
+    loc, yaw = car.get_actor_location(), math.radians(car.get_actor_rotation().yaw)
+    # aracın yan tarafına (mesh x = genişlik ekseni) DROPZONE_OFFSET_M
+    off = DROPZONE_OFFSET_M * 100
+    pad_loc = unreal.Vector(loc.x + off * math.cos(yaw), loc.y + off * math.sin(yaw), ground_z + 1)
+    pad = spawn(dz_mesh, pad_loc, 0, (DROPZONE_SIZE_M, DROPZONE_SIZE_M, 1), f"DropZone_{i:02d}",
+                material=texture_material(f"DropZone_{i:02d}"))
+    pad.static_mesh_component.set_mobility(unreal.ComponentMobility.MOVABLE)
+    dropzones.append(pad.get_name())
+
+# Kişiler (arama-kurtarma): açıklıklarda, araçlardan ve iniş noktasından uzak.
+# Ayakta olanlar nefes alma animasyonunda; yatanlar yaralı (yere paralel). Tespit filtresi mesh adına
+# bakar ("*Mannequin*"). Paket KİŞİNİN ÜSTÜNE DEĞİL güvenli mesafede yanına bırakılır (autonomy sar modu).
+people, people_pose = [], []
+mannequin = lib.load_asset(MANNEQUIN)
+idle = lib.load_asset(IDLE_ANIM)
+for k in range(N_PEOPLE):
+    for _ in range(500):
+        cx, cy, cr = rng.choice(clearings[1:])
+        a, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, max(cr - 3.0, 0.5))
+        x, y = cx + d * math.cos(a), cy + d * math.sin(a)
+        if (all(math.hypot(x - px, y - py) > 7 for px, py in placed) and
+                math.hypot(x - lx, y - ly) > 12):
+            break
+    placed.append((x, y))
+    lying = k % 2 == 1
+    rot = unreal.Rotator()
+    rot.yaw = rng.uniform(0, 360)
+    if lying:
+        rot.roll = 90.0
+    person = eas.spawn_actor_from_object(mannequin, ned_to_ue(x, y, 15 if lying else 0), rot)
+    person.set_actor_label(f"Person_{k + 1:02d}")
+    person.set_folder_path(FOLDER)
+    comp = person.skeletal_mesh_component
+    comp.set_mobility(unreal.ComponentMobility.MOVABLE)
+    if not lying and idle is not None:
+        comp.set_animation_mode(unreal.AnimationMode.ANIMATION_SINGLE_NODE)
+        comp.override_animation_data(idle, True, True, 0.0, 1.0)
+    people.append(person.get_name())
+    people_pose.append("lie" if lying else "stand")
 
 pkg_mesh = mesh_copy("/Engine/BasicShapes/Cube", "SM_Package")
 try:
@@ -302,9 +358,14 @@ scene = {
     "clearings": [[round(x, 2), round(y, 2), round(r, 2)] for x, y, r in clearings],
     "cruise_alt_m": CRUISE_ALT_M,
     "paint_materials": [m.get_path_name() for m in car_mats],  # simSetObjectMaterial için
+    "dropzones": dropzones,              # cars[i] aracının teslimat noktası; ArUco id = i + 1
+    "dropzone_offset_m": DROPZONE_OFFSET_M,
+    "dropzone_marker_m": DROPZONE_MARKER_M,
+    "people": people,                    # arama-kurtarma kişileri
+    "people_pose": people_pose,          # "stand" / "lie"
 }
 (ROOT / "mission" / "scene_objects.json").write_text(json.dumps(scene, indent=2), encoding="utf-8")
 
 les.save_current_level()
 unreal.log(f"DroneSim orman: {n_trees} ağaç, {n_bush} fidan, {len(clearings)} açıklık, "
-           f"{len(car_names)} araba (yükseklik {car_height:.2f} m). ForestMap kaydedildi.")
+           f"{len(car_names)} araba (yükseklik {car_height:.2f} m), {len(people)} kişi. ForestMap kaydedildi.")

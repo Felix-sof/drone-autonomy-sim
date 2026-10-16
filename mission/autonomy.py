@@ -8,13 +8,19 @@ ve gerçek drone'da çalışır:
     payload   payload.py (SimPayload / GripperPayload)
     on_drop   isteğe bağlı: bırakmadan sonra çağrılır (simülasyonda isabet değerlendirmesi)
 
+İki bırakma modu:
+    "dropzone"  (varsayılan) araba bulunur, YANINDAKİ numaralı ArUco teslimat işaretçisine
+                hizalanılır ve paket işaretçiye bırakılır; işaretçi yoksa BIRAKILMAZ.
+                Teslimat drone'ları ve arama-kurtarma bu şekilde çalışır.
+    "roof"      paket araba üstüne bırakılır (önceki deneyler).
+
 Koordinatlar yerel NED (kalkış noktası orijin), irtifa zeminden.
 """
 import math
 import time
 
 import fly_mission
-from aruco_land import aruco_land_vehicle
+from aruco_land import aruco_land_vehicle, find_markers
 from perception import box_center, pixel_to_ground
 
 LANE_SPACING_M = 35   # 25 m'de kamera ~50 m genişlik görür; şeritler örtüşsün
@@ -27,6 +33,7 @@ MAX_MISSES = 10       # takipte hedef bu kadar ardışık karede görünmezse va
 FENCE_MARGIN_M = 15   # görev alanının bu kadar dışına çıkılırsa görev iptal (geofence)
 MIN_BATTERY = 0.25    # kalan pil bunun altına düşerse eve dön
 MAX_MISSION_S = 900   # görev süresi sınırı (pil süresine göre ayarla)
+DROPZONE_MAX_M = 8.0  # teslimat işaretçisi arabanın en fazla bu kadar yakınında aranır
 
 
 class Abort(Exception):
@@ -113,12 +120,63 @@ def align_over_target(vehicle, grab, detector, timeout=40, show=True):
     return False
 
 
+def align_over_marker(vehicle, grab, marker_id, timeout=40):
+    """Belirli bir ArUco işaretçisinin tam üstüne gelene kadar NED hız komutuyla kayar."""
+    t0 = time.time()
+    misses, good = 0, 0
+    vn_f = ve_f = 0.0
+    while time.time() - t0 < timeout:
+        img = grab()
+        roll, pitch, yaw = vehicle.attitude()
+        m = next((mk for mk in find_markers(img) if mk[0] == marker_id), None)
+        if m is None:
+            misses += 1
+            vehicle.hover()
+            if misses > MAX_MISSES:
+                return False
+            time.sleep(0.1)
+            continue
+        misses = 0
+        g = pixel_to_ground(img.shape, *m[1], vehicle.height_agl(), roll, pitch, yaw)
+        if g is None:
+            continue
+        dn, de = g
+        err = math.hypot(dn, de)
+        good = good + 1 if err < ALIGN_TOL_M else 0
+        if good >= 3:
+            vehicle.hover()
+            return True
+        sp = min(1.5, 0.5 * err)
+        vn, ve = (dn / err * sp, de / err * sp) if err > 1e-6 else (0.0, 0.0)
+        vn_f, ve_f = 0.5 * vn_f + 0.5 * vn, 0.5 * ve_f + 0.5 * ve
+        vehicle.velocity_ned(vn_f, ve_f, 0.0)
+        time.sleep(0.12)
+    vehicle.hover()
+    return False
+
+
+def nearest_dropzone(vehicle, img):
+    """Görüntü merkezindeki (hizalanılan) arabaya en yakın teslimat işaretçisi: (id, mesafe_m) ya da None."""
+    roll, pitch, yaw = vehicle.attitude()
+    h = vehicle.height_agl()
+    best = None
+    for mid, center, _ in find_markers(img):
+        g = pixel_to_ground(img.shape, *center, h, roll, pitch, yaw)
+        if g is None:
+            continue
+        d = math.hypot(*g)
+        if d <= DROPZONE_MAX_M and (best is None or d < best[1]):
+            best = (mid, d)
+    return best
+
+
 def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliveries=3, speed=5.0,
-                       landing=(0.0, 0.0), on_drop=None, log=print):
+                       landing=(0.0, 0.0), on_drop=None, log=print, mode="dropzone"):
     """Tam görev. (teslimatlar, işaretçiyle_indi_mi, süre_s, iptal_sebebi) döndürür."""
     route = lawnmower(area, LANE_SPACING_M, alt)
     log(f"Arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
     visited, dropped, results = [], [], []
+    served_ids = set()  # teslimat yapılan işaretçi numaraları
     approaches = 0
     t_start = time.time()
     abort_reason = None
@@ -158,15 +216,37 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
             vehicle.wait_still(max_speed=0.05)
             n, e, _ = vehicle.position()
             visited.append((n, e))  # tahmin ile hizalanılan yer farklı olabilir: ikisi de işaretli
-            if any(math.hypot(n - dn, e - de) < NEW_TARGET_M for dn, de in dropped):
+            if mode == "roof" and any(math.hypot(n - dn, e - de) < NEW_TARGET_M for dn, de in dropped):
                 log("  bu araba zaten teslim aldı, bırakılmadı; aramaya devam")
                 continue
+            marker_id = None
+            if mode == "dropzone":
+                dz = None
+                for _ in range(15):          # birkaç kare dene (işaretçi bulanıklık/açı ile kaçabilir)
+                    dz = nearest_dropzone(vehicle, grab())
+                    if dz:
+                        break
+                    time.sleep(0.1)
+                if dz is None:
+                    log("  bu arabanın yanında teslimat işaretçisi yok, BIRAKILMADI; aramaya devam")
+                    continue
+                marker_id = dz[0]
+                if marker_id in served_ids:
+                    log(f"  #{marker_id} zaten teslim aldı, bırakılmadı; aramaya devam")
+                    continue
+                log(f"  teslimat noktası #{marker_id} ({dz[1]:.1f} m yanda) -> hizalanılıyor")
+                if not align_over_marker(vehicle, grab, marker_id):
+                    log("  işaretçi kayboldu, bırakılmadı; aramaya devam")
+                    continue
+                vehicle.wait_still(max_speed=0.05)
+                n, e, _ = vehicle.position()
+                served_ids.add(marker_id)
             dropped.append((n, e))
             handle = payload.release()
             rec = {"no": len(results) + 1, "n": round(n, 2), "e": round(e, 2), "guven": round(conf, 2),
-                   "zaman_s": round(time.time() - t_start, 1)}
+                   "isaretci": marker_id, "zaman_s": round(time.time() - t_start, 1)}
             if on_drop is not None:
-                rec.update(on_drop(handle) or {})
+                rec.update(on_drop(handle, marker_id) or {})
             results.append(rec)
             log(f"  paket {rec['no']} bırakıldı" + (f": {rec.get('sonuc_metni', '')}" if on_drop else ""))
             fly_mission.hide_preview()
