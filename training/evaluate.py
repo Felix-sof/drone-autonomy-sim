@@ -14,6 +14,10 @@ def run(a):
               project=r"C:\UE\drone_runs", name="eval", exist_ok=True)
     p, rc, m50, m5095 = r.box.mp, r.box.mr, r.box.map50, r.box.map
     print(f"\nSONUÇ: precision {p:.3f}  recall {rc:.3f}  mAP50 {m50:.3f}  mAP50-95 {m5095:.3f}")
+    names = r.names
+    for i, c in enumerate(r.box.ap_class_index):   # sınıf bazında (ör. araba / kişi)
+        pi, ri, ap50, ap = r.box.class_result(i)
+        print(f"  {names[int(c)]:>8}: precision {pi:.3f}  recall {ri:.3f}  mAP50 {ap50:.3f}  mAP50-95 {ap:.3f}")
 
 
 if __name__ == "__main__":

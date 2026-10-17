@@ -58,6 +58,25 @@ Kamera kalibrasyonu: OpenCV satranç tahtası kalibrasyonuyla odak uzaklığı v
 - Model durumu (`car_mixed2`, simülasyon + VisDrone): gerçek drone görüntülerinde (VisDrone val)
   mAP50 0.863, simülasyonda 0.823. Sadece simülasyonla eğitilen model gerçekte 0.02'ydi.
 
+## 3b. Bırakma irtifası: alçal, sonra bırak
+
+Ticari sistemler paketi seyir irtifasından atmaz: Amazon MK30 ~4 m'ye alçalıp bırakır, Wing ~7 m'de
+durup paketi iple (vinç) indirir, Skydio Dropper kılavuzu kurtarma şamandırası için ~7.5 m önerir.
+Görev kodu da aynı şekilde çalışır (`--birakma-irtifa`, dropzone 5 m, SAR 8 m):
+seyir irtifasında işaretçiye hizalan → işaretçiye ortalı kalarak dikey alçal (1.5 m/s) → altta
+kişi görülürse vazgeç → bırak → seyir irtifasına dikey çık.
+
+Gerçek drone'da bunun için:
+- **Aşağı bakan mesafe sensörü ŞART.** PX4'te `height_agl()` kalkış noktasına göre irtifadır;
+  eğimli arazide 5 m hedef, yerden 2 m ya da 8 m olabilir. Lidar ile `EKF2_RNG_CTRL` açılmalı ve
+  `height_agl()` mesafe sensöründen okunmalı.
+- **Alçalma koridoru boş olmalı:** ağaç dalı, kablo, direk. Kod bunları görmez; teslimat
+  noktaları açık alanda seçilmeli (simülasyonda açıklıklarda).
+- Alçalırken pervane rüzgârı hafif paketleri savurur, toz kaldırır; paket kapalı ve ağırlığı
+  dengeli olmalı.
+- Wing tarzı vinç (ipli indirme) drone'u daha yüksekte tutar ve çarpma hızını sıfıra yaklaştırır;
+  donanım karmaşıklığı karşılığında en güvenli seçenektir.
+
 ## 4. Test merdiveni (her basamağı geçmeden sonrakine geçme)
 
 1. `python mission/run_real.py bench --camera 0 --goster` — kamera + tespit, drone yok.
@@ -87,8 +106,9 @@ Gerçek kişilerin bulunduğu bir ortamda (`run_autonomy.py --mod sar`, `mission
 - Tespit modeli kişileri **kaçırabilir** (küçük, ağaç altında, sıra dışı duruş). Bu yüzden
   "altında kimse görünmüyor" kesinlik değildir: gerçek uçuşta bırakmadan önce **pilot onayı**
   (canlı görüntüyle) zorunlu tutulmalı; otomatik bırakma sadece boş test alanında denenmeli.
-- Paket hafif, yumuşak (köpük/kumaş) ya da paraşütlü olmalı; bırakma irtifası mevzuatın ve
-  güvenliğin izin verdiği en düşük değer olmalı (simülasyondaki 25 m ağaç tepeleri yüzünden).
+- Paket hafif, yumuşak (köpük/kumaş) ya da paraşütlü olmalı; drone bırakma noktasına
+  alçalarak bırakır (SAR varsayılanı 8 m; alçalırken her karede alt yeniden kontrol edilir,
+  kişi görülürse bırakmadan yükselir). Seyir irtifası ağaç tepelerinin üstünde kalır (25 m).
 - Kişinin konumu ve görüntüsü kişisel veridir: kayıtları güvenli sakla, görev bitince paylaşma.
 - Gerçek bir arama-kurtarma operasyonunda bu sistem yetkili ekiplerin koordinasyonunda,
   onların kurallarına göre kullanılmalıdır; tek başına bir kurtarma aracı değildir.

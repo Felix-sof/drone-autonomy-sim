@@ -14,12 +14,14 @@ class SimPayload:
         from sim_client import airsim
         self.airsim = airsim
         self.c = client
+        self.count = 0
 
     def release(self):
         """Paketi drone'un 0.7 m altında fizikli olarak oluşturur; nesne adını döndürür."""
         p = self.c.simGetVehiclePose().position  # AirSim koordinatı (PX4 yerel orijininden bağımsız)
+        self.count += 1   # her pakete ayrı ad: silinen bir adla hemen yeniden oluşturmak Unreal'i çökertiyor
         return self.c.simSpawnObject(
-            "Package", "SM_Package",
+            f"Package_{self.count}", "SM_Package",
             self.airsim.Pose(self.airsim.Vector3r(p.x_val, p.y_val, p.z_val + 0.7), self.airsim.Quaternionr()),
             self.airsim.Vector3r(*PACKAGE_SIZE), physics_enabled=True)
 

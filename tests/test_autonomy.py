@@ -32,7 +32,7 @@ class FakeVehicle:
     """Hız komutunu birinci dereceden gecikmeyle izleyen nokta-kütle drone; kamera her karede dt ilerletir."""
 
     def __init__(self, n=0.0, e=0.0, alt=25.0, battery=0.9):
-        self.p = np.array([n, e, -alt])
+        self.p = np.array([n, e, -alt], dtype=float)
         self.v = np.zeros(3)
         self.cmd = np.zeros(3)
         self.battery_level = battery
@@ -158,3 +158,38 @@ def test_sar_zone_clear_detects_person_below():
     v = FakeVehicle(0, 0)
     assert sar.zone_clear(v, np.zeros(SHAPE, np.uint8), FakeWorld(v, [(10.0, 0.0, 1)]))
     assert not sar.zone_clear(v, np.zeros(SHAPE, np.uint8), FakeWorld(v, [(2.0, 1.0, 1)]))
+
+
+def fake_marker(monkeypatch, v, n, e, marker_id=3):
+    """find_markers'ı yerdeki (n, e) işaretçisini drone'dan görüyormuş gibi taklit eder."""
+    def find(img, exclude=(0,)):
+        h = v.height_agl()
+        dn, de = n - v.p[0], e - v.p[1]
+        return [(marker_id, (640 + de / h * F, 360 - dn / h * F), None)]
+    monkeypatch.setattr(autonomy, "find_markers", find)
+
+
+def test_descend_over_marker_reaches_drop_alt_centered(monkeypatch):
+    v = FakeVehicle(0, 0, alt=25)
+    fake_marker(monkeypatch, v, 1.0, -0.8)
+    assert autonomy.descend_over_marker(v, FakeWorld(v, []).grab, 3, 5.0) is None
+    assert abs(v.height_agl() - 5.0) < 0.3
+    assert math.hypot(v.p[0] - 1.0, v.p[1] + 0.8) < autonomy.ALIGN_TOL_M + 0.1
+
+
+def test_descend_over_marker_aborts_if_person_near(monkeypatch):
+    v = FakeVehicle(0, 0, alt=25)
+    fake_marker(monkeypatch, v, 0.0, 0.0)
+    world = FakeWorld(v, [(2.0, 1.0, 1)])          # işaretçiye 2.2 m'de bir kişi
+    why = autonomy.descend_over_marker(v, world.grab, 3, 5.0, detector=world)
+    assert why is not None and "kişi" in why
+    assert v.height_agl() > 20                     # hiç alçalmadan vazgeçti
+
+
+def test_sar_descend_clear(monkeypatch):
+    v = FakeVehicle(0, 0, alt=25)
+    assert sar.descend_clear(v, FakeWorld(v, [(7.0, 0.0, 1)]).grab, FakeWorld(v, [(7.0, 0.0, 1)]), 8.0)
+    assert abs(v.height_agl() - 8.0) < 0.3 and math.hypot(v.p[0], v.p[1]) < 0.3
+    v2 = FakeVehicle(0, 0, alt=25)
+    w2 = FakeWorld(v2, [(1.0, 1.0, 1)])            # tam altta kişi
+    assert not sar.descend_clear(v2, w2.grab, w2, 8.0)

@@ -117,6 +117,9 @@ def center_over_target(client, cam, model, target_name, alt, timeout=40):
     return True
 
 
+LAST_IMPACT_SPEED = None   # son wait_until_rest çağrısında ölçülen çarpma hızı (m/s, düşey)
+
+
 def wait_until_rest(client, name, cam, timeout=8):
     """Paketi izler: ilk çarpma noktasını ve durduğu yeri döndürür (önizlemede düşüşü gösterir).
 
@@ -128,6 +131,7 @@ def wait_until_rest(client, name, cam, timeout=8):
     still_since = None
     impact = None
     falling_fast = False
+    vmax = 0.0
     t0 = time.time()
     next_frame = 0.0
     while time.time() - t0 < timeout:
@@ -137,8 +141,19 @@ def wait_until_rest(client, name, cam, timeout=8):
             next_frame = time.time() + 0.15
         p = client.simGetObjectPose(name).position
         cur = np.array([p.x_val, p.y_val, p.z_val])
+        if last is not None and np.array_equal(cur, last):
+            # aynı fizik karesi tekrar okundu (Unreal ~45 Hz günceller, biz 50 Hz okuyoruz):
+            # hız 0 sanılıp "çarptı" denmesin; durma süresi yine de sayılsın
+            if still_since is None:
+                still_since = now
+            elif now - still_since > 0.5 and now - t0 > 1.0:
+                break
+            time.sleep(0.02)
+            continue
         if last is not None:
             vz = (cur[2] - last[2]) / max(now - last_t, 1e-3)  # NED: + aşağı
+            if impact is None:
+                vmax = max(vmax, vz)
             if vz > 3.0:
                 falling_fast = True
             elif falling_fast and impact is None and vz < 1.0:
@@ -151,6 +166,8 @@ def wait_until_rest(client, name, cam, timeout=8):
                 still_since = None
         last, last_t = cur, now
         time.sleep(0.02)
+    global LAST_IMPACT_SPEED
+    LAST_IMPACT_SPEED = round(vmax, 1)
     return last, (impact if impact is not None else last)
 
 

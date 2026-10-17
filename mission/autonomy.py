@@ -14,6 +14,12 @@ ve gerçek drone'da çalışır:
                 Teslimat drone'ları ve arama-kurtarma bu şekilde çalışır.
     "roof"      paket araba üstüne bırakılır (önceki deneyler).
 
+Bırakma irtifası (drop_alt): gerçek teslimat drone'ları seyir irtifasından paket atmaz; hedefin
+üstünde alçalıp bırakır (Amazon MK30 ~4 m, Wing ~7 m ipli vinç, Skydio Dropper ~7.5 m). drop_alt
+verilirse drone işaretçiye ortalı kalarak dikey alçalır, alçalırken altta kişi görürse vazgeçer,
+bırakır ve seyir irtifasına geri çıkar. 25 m'den serbest düşüşte paket ~22 m/s ile çarpar,
+5 m'den ~10 m/s.
+
 Koordinatlar yerel NED (kalkış noktası orijin), irtifa zeminden.
 """
 import math
@@ -33,6 +39,8 @@ MAX_MISSES = 10       # takipte hedef bu kadar ardışık karede görünmezse va
 FENCE_MARGIN_M = 15   # görev alanının bu kadar dışına çıkılırsa görev iptal (geofence)
 MIN_BATTERY = 0.25    # kalan pil bunun altına düşerse eve dön
 MAX_MISSION_S = 900   # görev süresi sınırı (pil süresine göre ayarla)
+DESCENT_SPEED = 1.5   # m/s, bırakma için alçalma hızı
+PERSON_CLEAR_M = 5.0  # alçalırken bırakma noktasına bu kadar yakın kişi görülürse bırakılmaz
 DROPZONE_MAX_M = 5.5  # teslimat işaretçisi arabanın en fazla bu kadar yakınında (kendi noktası 3.8 m'de;
                       # 8 m'de bir araç komşu aracın işaretçisini seçebiliyordu)
 
@@ -156,6 +164,57 @@ def align_over_marker(vehicle, grab, marker_id, timeout=40):
     return False
 
 
+def descend_over_marker(vehicle, grab, marker_id, target_alt, detector=None, timeout=60):
+    """İşaretçiye ortalı kalarak target_alt'a (zeminden) dikey alçalır.
+
+    None döndürürse hazır; aksi halde vazgeçme sebebi (str). Ortalama kaçarsa alçalma durur,
+    önce yeniden ortalanır; altta kişi görülürse (iki sınıflı modelde) bırakmadan vazgeçilir.
+    """
+    t0 = time.time()
+    misses, good = 0, 0
+    vn_f = ve_f = 0.0
+    while time.time() - t0 < timeout:
+        img = grab()
+        roll, pitch, yaw = vehicle.attitude()
+        h = vehicle.height_agl()
+        m = next((mk for mk in find_markers(img) if mk[0] == marker_id), None)
+        if m is None:
+            misses += 1
+            vehicle.hover()
+            if misses > MAX_MISSES:
+                return "alçalırken işaretçi kayboldu"
+            time.sleep(0.1)
+            continue
+        misses = 0
+        g = pixel_to_ground(img.shape, *m[1], h, roll, pitch, yaw)
+        if g is None:
+            continue
+        dn, de = g
+        if detector is not None:
+            for pn, pe, _ in ground_estimates(vehicle, img, detector.detect(img, conf=0.3, classes=[1])):
+                n0, e0, _ = vehicle.position()
+                if math.hypot(pn - (n0 + dn), pe - (e0 + de)) < PERSON_CLEAR_M:
+                    vehicle.hover()
+                    return "bırakma noktasının yakınında kişi var"
+        err = math.hypot(dn, de)
+        left = h - target_alt
+        centered = err < max(ALIGN_TOL_M, 0.04 * h)   # yüksekte biraz gevşek, aşağıda sıkı
+        good = good + 1 if (left < 0.2 and err < ALIGN_TOL_M) else 0
+        if good >= 3:
+            vehicle.hover()
+            return None
+        sp = min(1.5, 0.5 * err)
+        vn, ve = (dn / err * sp, de / err * sp) if err > 1e-6 else (0.0, 0.0)
+        vn_f, ve_f = 0.5 * vn_f + 0.5 * vn, 0.5 * ve_f + 0.5 * ve
+        vd = min(DESCENT_SPEED, 0.6 * left) if (centered and left > 0) else 0.0
+        if left < -0.5:
+            vd = -0.5   # fazla alçaldı: hafifçe yüksel
+        vehicle.velocity_ned(vn_f, ve_f, vd)
+        time.sleep(0.12)
+    vehicle.hover()
+    return "alçalma zaman aşımı"
+
+
 def nearest_dropzone(vehicle, img):
     """Görüntü merkezindeki (hizalanılan) arabaya en yakın teslimat işaretçisi: (id, mesafe_m) ya da None."""
     roll, pitch, yaw = vehicle.attitude()
@@ -172,8 +231,11 @@ def nearest_dropzone(vehicle, img):
 
 
 def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliveries=3, speed=5.0,
-                       landing=(0.0, 0.0), on_drop=None, log=print, mode="dropzone"):
-    """Tam görev. (teslimatlar, işaretçiyle_indi_mi, süre_s, iptal_sebebi) döndürür."""
+                       landing=(0.0, 0.0), on_drop=None, log=print, mode="dropzone", drop_alt=None):
+    """Tam görev. (teslimatlar, işaretçiyle_indi_mi, süre_s, iptal_sebebi) döndürür.
+
+    drop_alt: dropzone modunda bu irtifaya (zeminden, m) alçalıp bırakır; None = seyir irtifasından.
+    """
     route = lawnmower(area, LANE_SPACING_M, alt)
     log(f"Arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
     visited, dropped, results = [], [], []
@@ -239,6 +301,14 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
                 if not align_over_marker(vehicle, grab, marker_id):
                     log("  işaretçi kayboldu, bırakılmadı; aramaya devam")
                     continue
+                if drop_alt is not None and drop_alt < alt - 0.5:
+                    log(f"  {drop_alt:.0f} m'ye alçalınıyor")
+                    why = descend_over_marker(vehicle, grab, marker_id, drop_alt, detector)
+                    if why is not None:
+                        log(f"  {why}, BIRAKILMADI; seyir irtifasına dönülüyor")
+                        n, e, _ = vehicle.position()
+                        vehicle.goto(n, e, -alt, 3.0)
+                        continue
                 vehicle.wait_still(max_speed=0.05)
                 n, e, _ = vehicle.position()
                 served_ids.add(marker_id)
@@ -246,11 +316,14 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
             handle = payload.release()
             rec = {"no": len(results) + 1, "n": round(n, 2), "e": round(e, 2), "guven": round(conf, 2),
                    "isaretci": marker_id, "zaman_s": round(time.time() - t_start, 1)}
+            rec["birakma_irtifa_m"] = round(vehicle.height_agl(), 2)
             if on_drop is not None:
                 rec.update(on_drop(handle, marker_id) or {})
             results.append(rec)
             log(f"  paket {rec['no']} bırakıldı" + (f": {rec.get('sonuc_metni', '')}" if on_drop else ""))
             fly_mission.hide_preview()
+            if vehicle.height_agl() < alt - 0.5:
+                vehicle.goto(n, e, -alt, 3.0)   # seyir irtifasına dikey çık
     except Abort as ex:
         abort_reason = str(ex)
         fly_mission.hide_preview()

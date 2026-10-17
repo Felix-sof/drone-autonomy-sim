@@ -6,7 +6,9 @@ TEMEL GÜVENLİK KURALI: paket hiçbir kişiye SAFE_MIN_M'den yakın bırakılma
     "açık zemin" görünen (ağaç/gölge değil) aday seçilerek belirlenir
   - bırakmadan hemen önce yeni karede altındaki bölge yeniden kontrol edilir; bir kişi
     yaklaşmışsa paket BIRAKILMAZ
-Gerçek sistemde ek olarak: pilotun onayı, düşük bırakma irtifası, yumuşak/paraşütlü paket.
+Bırakma irtifası (drop_alt, öneri 8 m; Skydio Dropper kılavuzu ~7.5 m): bırakma noktasına dikey
+alçalınır, alçalırken her karede alt bölge yeniden kontrol edilir.
+Gerçek sistemde ek olarak: pilotun onayı, yumuşak/paraşütlü paket, mesafe sensörü.
 
 Kamera: stabilizasyonlu gimbal, yaw kuzeye kilitli varsayılır (perception.CAMERA_STABILIZED).
 """
@@ -29,6 +31,7 @@ DROP_RADIUS_M = 6.5       # aday noktaların kişiye uzaklığı
 OTHERS_MIN_M = 4.0        # diğer kişi/araçlara en az bu kadar uzak
 N_CANDIDATES = 16
 NEW_PERSON_M = 8.0
+DESCENT_SPEED = 1.5
 
 
 def ground_to_pixel(shape, dn, de, height, hfov_deg=90.0):
@@ -98,6 +101,27 @@ def zone_clear(vehicle, img, detector):
     return True
 
 
+def descend_clear(vehicle, grab, detector, target_alt, timeout=40):
+    """Bulunduğu yerde target_alt'a dikey alçalır; her karede altı kontrol eder. True = hazır."""
+    n, e, _ = vehicle.position()
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        img = grab()
+        if not zone_clear(vehicle, img, detector):
+            vehicle.hover()
+            return False
+        h = vehicle.height_agl()
+        left = h - target_alt
+        if abs(left) < 0.2:
+            vehicle.hover()
+            return True
+        cn, ce, _ = vehicle.position()   # yatayda yerinde kal
+        vehicle.velocity_ned(0.5 * (n - cn), 0.5 * (e - ce), max(-0.5, min(DESCENT_SPEED, 0.6 * left)))
+        time.sleep(0.12)
+    vehicle.hover()
+    return False
+
+
 def align_over_person(vehicle, grab, detector, timeout=30):
     """Kişinin üstüne gelir (tespit konumunu iyileştirmek için; bırakma burada YAPILMAZ)."""
     t0, track, misses, good = time.time(), None, 0, 0
@@ -132,7 +156,8 @@ def align_over_person(vehicle, grab, detector, timeout=30):
 
 
 def sar_mission(vehicle, grab, detector, payload, area, alt=25.0, packages=3, speed=5.0,
-                landing=(0.0, 0.0), on_drop=None, log=print):
+                landing=(0.0, 0.0), on_drop=None, log=print, drop_alt=None):
+    """drop_alt: bırakma noktasında bu irtifaya (zeminden, m) alçalıp bırakır; None = seyir irtifası."""
     route = lawnmower(area, LANE_SPACING_M, alt)
     log(f"SAR arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
     found, results = [], []
@@ -181,13 +206,22 @@ def sar_mission(vehicle, grab, detector, payload, area, alt=25.0, packages=3, sp
             if not zone_clear(vehicle, grab(), detector):
                 log("  bırakma noktasına kişi yaklaştı, BIRAKILMADI")
                 continue
+            if drop_alt is not None and drop_alt < alt - 0.5:
+                log(f"  {drop_alt:.0f} m'ye alçalınıyor (her karede alt kontrol ediliyor)")
+                if not descend_clear(vehicle, grab, detector, drop_alt) or not zone_clear(vehicle, grab(), detector):
+                    log("  alçalırken altta kişi görüldü/alçalınamadı, BIRAKILMADI; yükseliyor")
+                    vehicle.goto(*vehicle.position()[:2], -alt, 3.0)
+                    continue
+                vehicle.wait_still(max_speed=0.05)
             handle = payload.release()
             n, e, _ = vehicle.position()
             rec = {"no": len(results) + 1, "kisi_tahmini": [round(pn, 2), round(pe, 2)],
                    "birakma": [round(n, 2), round(e, 2)], "aciklik": round(score, 2),
-                   "zaman_s": round(time.time() - t_start, 1)}
+                   "zaman_s": round(time.time() - t_start, 1), "birakma_irtifa_m": round(vehicle.height_agl(), 2)}
             if on_drop is not None:
                 rec.update(on_drop(handle) or {})
+            if vehicle.height_agl() < alt - 0.5:
+                vehicle.goto(n, e, -alt, 3.0)
             results.append(rec)
             log(f"  yardım paketi {rec['no']} bırakıldı" + (f": {rec.get('sonuc_metni', '')}" if on_drop else ""))
             fly_mission.hide_preview()

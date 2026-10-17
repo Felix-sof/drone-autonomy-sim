@@ -45,8 +45,15 @@ def main():
                     help="dropzone: aracın yanındaki ArUco teslimat noktasına; roof: araç üstüne; "
                          "sar: kişi ara, güvenli mesafede yardım paketi bırak (iki sınıflı model)")
     ap.add_argument("--imgsz", type=int, default=960, help="tespit çözünürlüğü (sar için 1280 önerilir)")
+    ap.add_argument("--birakma-irtifa", type=float, default=None,
+                    help="hedefin üstünde bu irtifaya (m) alçalıp bırak; varsayılan dropzone 5, sar 8; "
+                         "0 = seyir irtifasından serbest bırak (eski davranış)")
     args = ap.parse_args()
     fly_mission.SHOW_PREVIEW = args.goster
+    drop_alt = args.birakma_irtifa
+    if drop_alt is None:
+        drop_alt = 8.0 if args.mod == "sar" else (5.0 if args.mod == "dropzone" else 0.0)
+    drop_alt = drop_alt if drop_alt > 0 else None
 
     cfg = load_mission()
     import perception
@@ -101,6 +108,7 @@ def main():
             ok = on_pad and not hit_car
             text = ("TESLİMAT NOKTASINA ✔" if ok else ("araca çarptı ✘" if hit_car else "noktanın dışına ✘"))
             return {"isabet": ok, "araba": car, "isaretci_merkezine_m": round(math.hypot(dx, dy), 2),
+                    "carpma_hizi_ms": drop_test.LAST_IMPACT_SPEED,
                     "araca_carpti": hit_car, "sonuc_metni": f"{text} (işaretçi #{marker_id} merkezine "
                                                          f"{math.hypot(dx, dy):.2f} m)"}
         car, dist = nearest_car(client, scene["cars"], impact[0], impact[1])
@@ -123,7 +131,8 @@ def main():
         ok = (not dangerous) and nearest <= 12.0 and kind == "yer"
         text = ("TEHLİKELİ: kişiye çok yakın ✘" if dangerous else
                 ("GÜVENLİ TESLİMAT ✔" if ok else ("ağaca/araca düştü ✘" if kind != "yer" else "kişiye çok uzak ✘")))
-        return {"isabet": ok, "tehlikeli": dangerous, "kisiye_m": round(nearest, 2), "zemin": kind,
+        return {"isabet": ok, "tehlikeli": dangerous, "carpma_hizi_ms": drop_test.LAST_IMPACT_SPEED,
+                "kisiye_m": round(nearest, 2), "zemin": kind,
                 "araba": car, "sonuc_metni": f"{text} (en yakın kişiye {nearest:.1f} m)"}
 
     if args.mod == "sar":
@@ -132,7 +141,7 @@ def main():
             results, marker, total, abort_reason = sar.sar_mission(
                 vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
                 alt=args.irtifa, packages=args.teslimat, speed=args.hiz,
-                landing=tuple(cfg["landing"]), on_drop=on_drop_sar)
+                landing=tuple(cfg["landing"]), on_drop=on_drop_sar, drop_alt=drop_alt)
         finally:
             vehicle.release()
         p = client.simGetVehiclePose().position
@@ -145,6 +154,7 @@ def main():
         print(f"Toplam süre: {total:.0f} s" + (f"  |  İPTAL: {abort_reason}" if abort_reason else ""))
         out = ROOT / "results" / f"sar_{args.backend}_{datetime.now():%Y%m%d_%H%M%S}.json"
         out.write_text(json.dumps({"backend": args.backend, "model": args.model, "sure_s": round(total, 1),
+                                   "birakma_irtifa_m": drop_alt,
                                    "paketler": results}, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"Kaydedildi: {out}")
         return
@@ -153,7 +163,7 @@ def main():
         results, marker, total, abort_reason = search_and_deliver(
             vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
             alt=args.irtifa, deliveries=args.teslimat, speed=args.hiz,
-            landing=tuple(cfg["landing"]), on_drop=on_drop, mode=args.mod)
+            landing=tuple(cfg["landing"]), on_drop=on_drop, mode=args.mod, drop_alt=drop_alt)
     finally:
         vehicle.release()
 
@@ -161,7 +171,11 @@ def main():
     landing_err = math.hypot(p.x_val - cfg["landing"][0], p.y_val - cfg["landing"][1])
     hits = sum(r.get("isabet", False) for r in results)
     unique = len({r.get("isaretci") or r["araba"] for r in results if r.get("isabet")})
-    print(f"\n=== OTONOM GÖREV ({args.backend.upper()}, mod: {args.mod}) ===")
+    drop_txt = f"{drop_alt:.0f} m" if drop_alt else f"{args.irtifa:.0f} m serbest"
+    print(f"\n=== OTONOM GÖREV ({args.backend.upper()}, mod: {args.mod}, bırakma: {drop_txt}) ===")
+    speeds = [r["carpma_hizi_ms"] for r in results if r.get("carpma_hizi_ms") is not None]
+    if speeds:
+        print(f"Paket çarpma hızı: ort {sum(speeds) / len(speeds):.1f} m/s, en fazla {max(speeds):.1f} m/s")
     print(f"Teslimat: {len(results)}  |  isabet: {hits}/{len(results)}  |  farklı araba: {unique}"
           f"  |  yanlış alarm: {len(results) - hits}")
     print(f"İniş: {'ArUco işaretçisiyle' if marker else 'işaretçisiz'}, helipad merkezine {landing_err:.2f} m")
@@ -172,6 +186,7 @@ def main():
     out = ROOT / "results" / f"autonomy_{args.backend}_{datetime.now():%Y%m%d_%H%M%S}.json"
     client.simSetWind(airsim.Vector3r(0, 0, 0))
     out.write_text(json.dumps({"backend": args.backend, "ruzgar": args.ruzgar, "model": args.model, "irtifa_m": args.irtifa,
+                               "birakma_irtifa_m": drop_alt, "mod": args.mod,
                                "sure_s": round(total, 1), "inis_hatasi_m": round(landing_err, 2),
                                "inis_isaretci": marker, "iptal": abort_reason, "teslimatlar": results},
                               indent=2, ensure_ascii=False), encoding="utf-8")
