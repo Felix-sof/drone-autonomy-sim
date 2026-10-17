@@ -45,6 +45,8 @@ def main():
                     help="dropzone: aracın yanındaki ArUco teslimat noktasına; roof: araç üstüne; "
                          "sar: kişi ara, güvenli mesafede yardım paketi bırak (iki sınıflı model)")
     ap.add_argument("--imgsz", type=int, default=960, help="tespit çözünürlüğü (sar için 1280 önerilir)")
+    ap.add_argument("--teslim", choices=["ip", "birak"], default="birak",
+                    help="sar modunda: birak = 5 m+ uzağa serbest bırakma (varsayılan), ip = kişinin yanına ipli uzatma (sonraki aşama)")
     ap.add_argument("--biyom", default="sabit",
                     help="görev dünyası: sabit (kurulumdaki yaz ormanı) | rastgele | yaz_ormani | kis_ormani | "
                          "seyrek_orman | col | kayalik")
@@ -99,7 +101,8 @@ def main():
     if wn or we:
         print(f"Rüzgar: kuzey {wn} m/s, doğu {we} m/s ({math.hypot(wn, we):.1f} m/s)")
     detector = CarDetector(args.model, imgsz=args.imgsz)
-    payload = SimPayload(client)
+    from payload import TetherPayload
+    payload = TetherPayload(client, G) if (args.mod == "sar" and args.teslim == "ip") else SimPayload(client)
 
     def on_drop(pkg, marker_id=None):  # sadece değerlendirme: Unreal'in gerçek konumlarıyla
         _, impact = wait_until_rest(client, pkg, cam)
@@ -125,6 +128,33 @@ def main():
         return {"isabet": kind in ("hedef", "baska_araba"), "ilk_temas": kind, "araba": car,
                 "merkeze_m": round(dist, 2), "sonuc_metni": f"{text} (merkeze {dist:.2f} m)"}
 
+    def body_distance(pp, x, y):
+        """(x, y)'nin kişinin gövdesine yatay uzaklığı: ayaktaysa dik eksen, yatıyorsa ayak->baş çizgisi."""
+        pose = client.simGetObjectPose(pp)
+        p, q = pose.position, pose.orientation
+        w, qx, qy, qz = q.w_val, q.x_val, q.y_val, q.z_val
+        # NED "yukarı" (0,0,-1) vektörünü kişinin yönelimiyle döndür: yatanda yatay olur
+        ux = -(2 * (qx * qz + w * qy))
+        uy = -(2 * (qy * qz - w * qx))
+        L = 1.75 * math.hypot(ux, uy)     # gövdenin yere izdüşümü (ayakta ~0)
+        if L < 0.2:
+            return math.hypot(x - p.x_val, y - p.y_val)
+        ax, ay = ux / math.hypot(ux, uy), uy / math.hypot(ux, uy)
+        t = max(0.0, min(L, (x - p.x_val) * ax + (y - p.y_val) * ay))
+        return math.hypot(x - (p.x_val + t * ax), y - (p.y_val + t * ay))
+
+    def on_tether_sar(pkg):   # ipli uzatma: paket kişinin kol mesafesinde mi, üstünde mi
+        pos = client.simGetObjectPose(pkg).position
+        client.simDestroyObject(pkg)
+        dists = [body_distance(pp, pos.x_val, pos.y_val) for pp in scene["people"]]
+        nearest = min(dists)
+        reach = 0.3 <= nearest <= 1.6
+        text = ("KOL MESAFESİNE ✔" if reach else
+                ("kişinin üstüne çok yakın ✘" if nearest < 0.3 else "uzanamayacağı yerde ✘"))
+        return {"isabet": reach, "tehlikeli": nearest < 0.3, "kisiye_m": round(nearest, 2),
+                "carpma_hizi_ms": payload.last_speed, "ip_m": payload.line_m,
+                "sonuc_metni": f"{text} (gövdeye {nearest:.2f} m, iniş hızı {payload.last_speed} m/s)"}
+
     def on_drop_sar(pkg):  # sadece değerlendirme: kişilere gerçek mesafe
         import sar
         _, impact = wait_until_rest(client, pkg, cam)
@@ -148,7 +178,9 @@ def main():
             results, marker, total, abort_reason = sar.sar_mission(
                 vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
                 alt=args.irtifa, packages=args.teslimat, speed=args.hiz,
-                landing=tuple(cfg["landing"]), on_drop=on_drop_sar, drop_alt=drop_alt)
+                landing=tuple(cfg["landing"]),
+                on_drop=on_tether_sar if args.teslim == "ip" else on_drop_sar, drop_alt=drop_alt,
+                method="tether" if args.teslim == "ip" else "drop")
         finally:
             vehicle.release()
         p = client.simGetVehiclePose().position
@@ -156,12 +188,17 @@ def main():
         ok = sum(r.get("isabet", False) for r in results)
         bad = sum(r.get("tehlikeli", False) for r in results)
         print(f"\n=== SAR GÖREVİ ({args.backend.upper()}) ===")
-        print(f"Yardım paketi: {len(results)}  |  güvenli teslimat: {ok}/{len(results)}  |  TEHLİKELİ: {bad}")
+        print(f"Yardım paketi ({'ipli uzatma' if args.teslim == 'ip' else 'serbest bırakma'}): {len(results)}  |  "
+              f"başarılı: {ok}/{len(results)}  |  TEHLİKELİ: {bad}")
+        if results and args.teslim == "ip":
+            ds = [r["kisiye_m"] for r in results]
+            print(f"Paket-gövde mesafesi: ort {sum(ds) / len(ds):.2f} m, en az {min(ds):.2f}, en çok {max(ds):.2f}")
         print(f"İniş: {'ArUco işaretçisiyle' if marker else 'işaretçisiz'}, helipad merkezine {landing_err:.2f} m")
         print(f"Toplam süre: {total:.0f} s" + (f"  |  İPTAL: {abort_reason}" if abort_reason else ""))
         out = ROOT / "results" / f"sar_{args.backend}_{datetime.now():%Y%m%d_%H%M%S}.json"
         out.write_text(json.dumps({"backend": args.backend, "model": args.model, "sure_s": round(total, 1),
-                                   "birakma_irtifa_m": drop_alt,
+                                   "birakma_irtifa_m": drop_alt, "teslim": args.teslim,
+                                   "biyom": scene.get("biome", "sabit"),
                                    "paketler": results}, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"Kaydedildi: {out}")
         return

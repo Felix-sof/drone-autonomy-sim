@@ -1,5 +1,10 @@
-"""Arama-kurtarma (SAR) görevi: kayıp/yaralı kişiyi bul -> güvenli mesafede açık bir noktaya
-yardım paketi bırak -> aramaya devam -> in.
+"""Arama-kurtarma (SAR) görevi: kayıp/yaralı kişiyi bul -> yardım paketini ulaştır -> aramaya devam -> in.
+
+İki teslim yöntemi:
+  "tether" (uzanma, önerilen): drone kişinin YANINDA (gövde kenarından HANDOVER_GAP_M ötede) alçak
+      irtifada durur, paket ip ucunda ~0.5 m/s ile kişinin kol mesafesine iner. Mahsur kalmış /
+      hareket edemeyen / selde suyla çevrili kişiye ulaşır; serbest düşen cisim kişiye nişanlanmaz.
+  "drop" (serbest bırakma): paket kişiden en az SAFE_MIN_M uzakta açık zemine bırakılır.
 
 TEMEL GÜVENLİK KURALI: paket hiçbir kişiye SAFE_MIN_M'den yakın bırakılmaz.
   - bırakma noktası kişinin çevresindeki çemberden, diğer kişi/araçlardan uzak ve görüntüde
@@ -32,6 +37,10 @@ OTHERS_MIN_M = 4.0        # diğer kişi/araçlara en az bu kadar uzak
 N_CANDIDATES = 16
 NEW_PERSON_M = 8.0
 DESCENT_SPEED = 1.5
+HANDOVER_GAP_M = 0.8      # ipli paket kişinin gövde kenarından bu kadar ötede (kol mesafesi)
+HANDOVER_ALT_M = 8.0      # ipli indirmede bekleme irtifası (Wing ~7 m)
+HANDOVER_TOL_M = 0.25     # drone'un hedef noktaya yatay hizalama toleransı
+HANDOVER_CLEAR_M = 1.0    # aday nokta başka kişi/araç gövdesine en az bu kadar uzak
 
 
 def ground_to_pixel(shape, dn, de, height, hfov_deg=90.0):
@@ -93,6 +102,90 @@ def choose_drop_point(vehicle, img, detector, person_rel):
     return best
 
 
+def box_half_extent_m(img_shape, box, height, hfov_deg=90.0):
+    """Tespit kutusunun yerdeki yarı boyları (kuzey, doğu) metre (gimbal'lı, yaw kuzeye kilitli)."""
+    f = (img_shape[1] / 2) / math.tan(math.radians(hfov_deg / 2))
+    return (box[3] - box[1]) / 2 * height / f, (box[2] - box[0]) / 2 * height / f
+
+
+def choose_handover_point(vehicle, img, detector, box):
+    """Kişinin yanında, gövde kenarından HANDOVER_GAP_M ötede, açık ve başka kimseye/araca yakın
+    olmayan bir nokta: (Δn, Δe) kişinin kutu merkezine göre, açıklık skoru. Yoksa None."""
+    h = vehicle.height_agl()
+    roll, pitch, yaw = vehicle.attitude()
+    center = pixel_to_ground(img.shape, *box_center(box), h, roll, pitch, yaw)
+    if center is None:
+        return None
+    half_n, half_e = box_half_extent_m(img.shape, box, h)
+    others = []
+    for b in detector.detect(img, conf=0.3, classes=[CAR, PERSON]):
+        if b is box or math.dist(box_center(b), box_center(box)) < 3:
+            continue
+        g = pixel_to_ground(img.shape, *box_center(b), h, roll, pitch, yaw)
+        if g is not None:
+            on, oe = box_half_extent_m(img.shape, b, h)
+            others.append((g[0] - center[0], g[1] - center[1], max(on, oe)))
+    f = (img.shape[1] / 2) / math.tan(math.radians(45))
+    best = None
+    for k in range(N_CANDIDATES):
+        a = 2 * math.pi * k / N_CANDIDATES
+        r = abs(math.cos(a)) * half_n + abs(math.sin(a)) * half_e + HANDOVER_GAP_M
+        cn, ce = r * math.cos(a), r * math.sin(a)
+        if any(math.hypot(cn - on, ce - oe) < rad + HANDOVER_CLEAR_M for on, oe, rad in others):
+            continue
+        px, py = ground_to_pixel(img.shape, center[0] + cn, center[1] + ce, h)
+        score = openness(img, px, py, radius_px=0.5 / h * f)
+        if best is None or score > best[2]:
+            best = (cn, ce, score)
+    return best
+
+
+def hover_beside_person(vehicle, grab, detector, offset, alt, timeout=60):
+    """Kişiyi takip ederek, kişi + offset noktasının üstünde `alt` irtifaya alçalır. None = hazır."""
+    t0, track, misses, good = time.time(), None, 0, 0
+    vn_f = ve_f = 0.0
+    while time.time() - t0 < timeout:
+        img = grab()
+        roll, pitch, yaw = vehicle.attitude()
+        h = vehicle.height_agl()
+        H, W = img.shape[:2]
+        boxes = detector.detect(img, conf=0.25, classes=[PERSON])
+        f = (W / 2) / math.tan(math.radians(45))
+        # ilk karede kişi, merkezden offset kadar uzakta görünmeli
+        ref = track if track is not None else (W / 2 - offset[1] / h * f, H / 2 + offset[0] / h * f)
+        b = min(boxes, key=lambda b: math.dist(box_center(b), ref), default=None)
+        if b is not None and math.dist(box_center(b), ref) > 0.15 * W:
+            b = None
+        if b is None:
+            misses += 1
+            vehicle.hover()
+            if misses > MAX_MISSES:
+                return "alçalırken kişi görüş dışında kaldı"
+            time.sleep(0.1)
+            continue
+        misses, track = 0, box_center(b)
+        fly_mission.show(img, [b])
+        g = pixel_to_ground(img.shape, *track, h, roll, pitch, yaw)
+        if g is None:
+            continue
+        dn, de = g[0] + offset[0], g[1] + offset[1]     # hedef noktaya göre drone'un hatası
+        err = math.hypot(dn, de)
+        left = h - alt
+        good = good + 1 if (abs(left) < 0.2 and err < HANDOVER_TOL_M) else 0
+        if good >= 3:
+            vehicle.hover()
+            return None
+        sp = min(1.2, 0.5 * err)
+        vn, ve = (dn / err * sp, de / err * sp) if err > 1e-6 else (0.0, 0.0)
+        vn_f, ve_f = 0.5 * vn_f + 0.5 * vn, 0.5 * ve_f + 0.5 * ve
+        centered = err < max(HANDOVER_TOL_M, 0.04 * h)
+        vd = min(DESCENT_SPEED, 0.6 * left) if (centered and left > 0) else (-0.5 if left < -0.5 else 0.0)
+        vehicle.velocity_ned(vn_f, ve_f, vd)
+        time.sleep(0.12)
+    vehicle.hover()
+    return "alçalma zaman aşımı"
+
+
 def zone_clear(vehicle, img, detector):
     """Drone'un tam altı (bırakma noktası) kişilerden SAFE_MIN_M uzakta mı?"""
     for on, oe, cls in objects_on_ground(vehicle, img, detector.detect(img, conf=0.25, classes=[PERSON])):
@@ -148,16 +241,42 @@ def align_over_person(vehicle, grab, detector, timeout=30):
         good = good + 1 if err < 0.5 else 0
         if good >= 3:
             vehicle.hover()
-            return img
+            return img, b
         sp = min(1.5, 0.5 * err)
         vehicle.velocity_ned(dn / err * sp if err > 1e-6 else 0, de / err * sp if err > 1e-6 else 0, 0.0)
         time.sleep(0.12)
     return None
 
 
+def _tether_delivery(vehicle, grab, detector, payload, img, pbox, alt, approve, log):
+    """Kişinin yanına alçal, ipli paketi uzat. Kayıt sözlüğü (+ '_handle') ya da None."""
+    pt = choose_handover_point(vehicle, img, detector, pbox)
+    if pt is None:
+        log("  kişinin yanında uygun nokta yok (başka kişi/araç çok yakın), uzatılmadı")
+        return None
+    dn, de, score = pt
+    log(f"  uzatma noktası: kişinin {math.hypot(dn, de):.1f} m yanında, açıklık {score:.2f}; "
+        f"{HANDOVER_ALT_M:.0f} m'ye alçalınıyor")
+    why = hover_beside_person(vehicle, grab, detector, (dn, de), HANDOVER_ALT_M)
+    if why is not None:
+        log(f"  {why}, uzatılmadı; yükseliyor")
+        vehicle.goto(*vehicle.position()[:2], -alt, 3.0)
+        return None
+    vehicle.wait_still(max_speed=0.05)
+    if approve is not None and not approve(grab(), f"SAR ipli uzatma, {vehicle.height_agl():.1f} m"):
+        log("  pilot onay vermedi, uzatılmadı")
+        vehicle.goto(*vehicle.position()[:2], -alt, 3.0)
+        return None
+    h = vehicle.height_agl()
+    handle = payload.release()       # ipli: yere indirip bırakır (bekler)
+    return {"yontem": "ip", "aciklik": round(score, 2), "bekleme_irtifa_m": round(h, 2),
+            "hedef_kaydirma_m": round(math.hypot(dn, de), 2), "_handle": handle}
+
+
 def sar_mission(vehicle, grab, detector, payload, area, alt=25.0, packages=3, speed=5.0,
-                landing=(0.0, 0.0), on_drop=None, log=print, drop_alt=None, approve=None):
-    """drop_alt: bırakma noktasında bu irtifaya (zeminden, m) alçalıp bırakır; None = seyir irtifası."""
+                landing=(0.0, 0.0), on_drop=None, log=print, drop_alt=None, approve=None, method="drop"):
+    """method: "tether" (kişinin yanına ipli uzatma) | "drop" (güvenli mesafeye serbest bırakma).
+    drop_alt: "drop"ta bu irtifaya (zeminden, m) alçalıp bırakır; None = seyir irtifası."""
     route = lawnmower(area, LANE_SPACING_M, alt)
     log(f"SAR arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
     found, results = [], []
@@ -189,12 +308,28 @@ def sar_mission(vehicle, grab, detector, payload, area, alt=25.0, packages=3, sp
             found.append(target)
             log(f"\nKişi bulundu ~({target[0]:.1f}, {target[1]:.1f}) -> üstüne gidiliyor")
             vehicle.goto(target[0], target[1], -alt, 4.0)
-            img = align_over_person(vehicle, grab, detector)
-            if img is None:
+            seen = align_over_person(vehicle, grab, detector)
+            if seen is None:
                 log("  kişi yaklaşınca görülemedi, aramaya devam")
                 continue
+            img, pbox = seen
             pn, pe, _ = vehicle.position()
             found[-1] = (pn, pe)
+            if method == "tether":
+                rec = _tether_delivery(vehicle, grab, detector, payload, img, pbox, alt, approve, log)
+                if rec is None:
+                    continue
+                n, e, _ = vehicle.position()
+                rec.update({"no": len(results) + 1, "kisi_tahmini": [round(pn, 2), round(pe, 2)],
+                            "birakma": [round(n, 2), round(e, 2)], "zaman_s": round(time.time() - t_start, 1)})
+                if on_drop is not None:
+                    rec.update(on_drop(rec.pop("_handle")) or {})
+                rec.pop("_handle", None)
+                vehicle.goto(n, e, -alt, 3.0)
+                results.append(rec)
+                log(f"  yardım paketi {rec['no']} uzatıldı" + (f": {rec.get('sonuc_metni', '')}" if on_drop else ""))
+                fly_mission.hide_preview()
+                continue
             drop = choose_drop_point(vehicle, img, detector, (0.0, 0.0))
             if drop is None:
                 log("  güvenli bırakma noktası bulunamadı, BIRAKILMADI")
