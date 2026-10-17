@@ -6,7 +6,7 @@ kargo paketi bırakır ve **ArUco işaretçili helipad'e sadece kamerayla** iner
 
 Görev kodu simülatörden bağımsız yazıldı (araç / kamera / paket arayüzleri): aynı `autonomy.py`
 AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştirerek — gerçek drone'da
-çalışır. Gerçek drone'a geçiş: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md).
+çalışır. Gerçek drone'a geçiş: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md). Kararlar ve nedenleri: [docs/TEKNIK_KARARLAR.md](docs/TEKNIK_KARARLAR.md).
 
 ```
             ┌──────────────── autonomy.py (ara/tespit/hizala/bırak/in, güvenlik) ───────────────┐
@@ -98,6 +98,7 @@ mission/sim.sh                  Simülasyonu tek komutla başlat/durdur (px4|air
 airsim/settings_px4.json        AirSim'i PX4 SITL'e bağlayan ayarlar (TCP 4560, lockstep)
 training/visdrone_to_yolo.py    Gerçek drone veri seti (VisDrone) -> YOLO; evaluate.py ölçüm
 docs/GERCEK_DRONE.md            Donanım, PX4 ayarları, test merdiveni, güvenlik
+docs/TEKNIK_KARARLAR.md         Teknik kararlar: sorun, seçenekler, neden, kanıt, bedel
 mission/sim_client.py           Ortak yardımcılar: bağlantı, kamera, tespit, yumuşak iniş
 mission/fly_mission.py          Waypoint görevi + veri kaydı + helipad'e hassas iniş
 mission/collect_data.py         Çok turlu otomatik veri toplama (her turda rastgele sahne)
