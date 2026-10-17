@@ -125,8 +125,8 @@ python mission/autonomous_mission.py --model C:/UE/drone_runs/car_forest2/weight
 
 # taşınabilir görev çekirdeği (bash mission/sim.sh px4 ile simülatör + PX4 açıkken)
 python mission/run_autonomy.py --model C:/UE/drone_runs/car_mixed2/weights/best.pt --backend px4 --teslimat 3
-#   --birakma-irtifa 5   hedefin üstünde 5 m'ye alçalıp bırak (dropzone varsayılanı; 0 = seyir irtifasından)
-#   --mod sar --imgsz 1280   arama-kurtarma (iki sınıflı model; varsayılan bırakma 8 m)
+#   --birakma-irtifa 5   isteğe bağlı: hedefin üstünde 5 m'ye alçalıp bırak (varsayılan: seyir irtifasından)
+#   --mod sar --imgsz 1280   arama-kurtarma (iki sınıflı model)
 #   --ruzgar 6,3   --isaretcisiz 0.4   rüzgar / negatif test
 ```
 

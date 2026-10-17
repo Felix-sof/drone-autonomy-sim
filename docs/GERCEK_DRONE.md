@@ -62,7 +62,7 @@ Kamera kalibrasyonu: OpenCV satranç tahtası kalibrasyonuyla odak uzaklığı v
 
 Ticari sistemler paketi seyir irtifasından atmaz: Amazon MK30 ~4 m'ye alçalıp bırakır, Wing ~7 m'de
 durup paketi iple (vinç) indirir, Skydio Dropper kılavuzu kurtarma şamandırası için ~7.5 m önerir.
-Görev kodu da aynı şekilde çalışır (`--birakma-irtifa`, dropzone 5 m, SAR 8 m):
+Görev kodu bunu isteğe bağlı destekler (`--birakma-irtifa 5`; varsayılan seyir irtifasından bırakma):
 seyir irtifasında işaretçiye hizalan → işaretçiye ortalı kalarak dikey alçal (1.5 m/s) → altta
 kişi görülürse vazgeç → bırak → seyir irtifasına dikey çık.
 
@@ -116,7 +116,7 @@ Gerçek kişilerin bulunduğu bir ortamda (`run_autonomy.py --mod sar`, `mission
   (canlı görüntüyle) zorunludur — `run_real.py --mod-gorev sar` bunu her pakette ister ve
   kapatılamaz; otomatik bırakma sadece simülasyonda.
 - Paket hafif, yumuşak (köpük/kumaş) ya da paraşütlü olmalı; drone bırakma noktasına
-  alçalarak bırakır (SAR varsayılanı 8 m; alçalırken her karede alt yeniden kontrol edilir,
+  `--birakma-irtifa` verilirse alçalarak bırakır (alçalırken her karede alt yeniden kontrol edilir,
   kişi görülürse bırakmadan yükselir). Seyir irtifası ağaç tepelerinin üstünde kalır (25 m).
 - Kişinin konumu ve görüntüsü kişisel veridir: kayıtları güvenli sakla, görev bitince paylaşma.
 - Gerçek bir arama-kurtarma operasyonunda bu sistem yetkili ekiplerin koordinasyonunda,

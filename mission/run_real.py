@@ -114,7 +114,8 @@ if __name__ == "__main__":
     ap.add_argument("--camera", default="0")
     ap.add_argument("--model", default="C:/UE/drone_runs/car_mixed2/weights/best.pt")
     ap.add_argument("--mod-gorev", choices=["dropzone", "sar"], default="dropzone")
-    ap.add_argument("--birakma-irtifa", type=float, default=5.0, help="0 = seyir irtifasından bırak")
+    ap.add_argument("--birakma-irtifa", type=float, default=0.0,
+                    help="0 (varsayılan) = seyir irtifasından bırak; ör. 5 = 5 m'ye alçalıp bırak")
     ap.add_argument("--imgsz", type=int, default=960)
     ap.add_argument("--onaysiz-birak", action="store_true",
                     help="dropzone'da pilot onayı isteme (sadece boş test alanında)")

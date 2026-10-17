@@ -51,13 +51,13 @@ def main():
                     help="görev dünyası: sabit (kurulumdaki yaz ormanı) | rastgele | yaz_ormani | kis_ormani | "
                          "seyrek_orman | col | kayalik")
     ap.add_argument("--birakma-irtifa", type=float, default=None,
-                    help="hedefin üstünde bu irtifaya (m) alçalıp bırak; varsayılan dropzone 5, sar 8; "
-                         "0 = seyir irtifasından serbest bırak (eski davranış)")
+                    help="isteğe bağlı: hedefin üstünde bu irtifaya (m) alçalıp bırak (ör. 5). "
+                         "Verilmezse seyir irtifasından (en yüksekten) bırakılır")
     args = ap.parse_args()
     fly_mission.SHOW_PREVIEW = args.goster
     drop_alt = args.birakma_irtifa
     if drop_alt is None:
-        drop_alt = 8.0 if args.mod == "sar" else (5.0 if args.mod == "dropzone" else 0.0)
+        drop_alt = 0.0   # varsayılan: seyir irtifasından bırak (alçalma yok)
     drop_alt = drop_alt if drop_alt > 0 else None
 
     cfg = load_mission()
