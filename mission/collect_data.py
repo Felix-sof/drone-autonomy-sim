@@ -113,6 +113,23 @@ def hover_shots(client, cfg, scene, rec, rng, z, n_cars=3, per_car=2):
             rec.save(get_rgb(client, cam), get_boxes(client, cam))
 
 
+def people_shots(client, cfg, scene, rec, rng, alt_range=(20, 32), per_person=2):
+    """Her kişinin üstünde, kişi kadrajda rastgele bir yerde kalacak şekilde (±10 m) ve farklı
+    irtifalarda dümdüz durup çekim yapar. Kişiler küçük ve az: arama-kurtarma modeli için."""
+    from fly_mission import get_boxes, get_rgb  # noqa: döngüsel import olmasın diye burada
+    cam = cfg["camera"]
+    G = scene["ground_z_ned"]
+    for name in scene.get("people", []):
+        p = client.simGetObjectPose(name).position
+        for _ in range(per_person):
+            ox, oy = rng.uniform(-10, 10, size=2)
+            z = G - rng.uniform(*alt_range)
+            client.moveToPositionAsync(p.x_val + ox, p.y_val + oy, z, 6).join()
+            client.hoverAsync().join()
+            time.sleep(0.8)
+            rec.save(get_rgb(client, cam), get_boxes(client, cam))
+
+
 def random_route(rng, scene, n=5):
     """Alanın içinde rastgele n nokta; merkez etrafında açıya göre sıralı, böylece rota kendini kesmez."""
     a = area(scene)
@@ -125,6 +142,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--turlar", type=int, default=10)
     ap.add_argument("--goster", action="store_true", help="Küçük kamera önizleme penceresi")
+    ap.add_argument("--kisi", action="store_true",
+                    help="kişi odaklı turlar: kısa rota + her kişinin üstünde farklı irtifa/kaydırmayla çekim")
     args = ap.parse_args()
     fly_mission.SHOW_PREVIEW = args.goster
 
@@ -146,8 +165,12 @@ def main():
             # ormanda ağaçların üstünde kal (en uzun ladin ~17 m)
             lo = scene.get("cruise_alt_m", 15)
             z = scene["ground_z_ned"] - rng.uniform(lo, lo + 12)
-            found = fly_once(client, cfg, rec, None, random_route(rng, scene), z, rng,
-                             before_landing=lambda c: hover_shots(c, cfg, scene, rec, rng, z))
+            if args.kisi:
+                found = fly_once(client, cfg, rec, None, random_route(rng, scene, n=2), z, rng,
+                                 before_landing=lambda c: people_shots(c, cfg, scene, rec, rng))
+            else:
+                found = fly_once(client, cfg, rec, None, random_route(rng, scene), z, rng,
+                                 before_landing=lambda c: hover_shots(c, cfg, scene, rec, rng, z))
             total_imgs += rec.count
             print(f"Tur {i}: {rec.count} görüntü, {len(found)} karede araba. Toplam: {total_imgs}")
             if rec.count < 5:

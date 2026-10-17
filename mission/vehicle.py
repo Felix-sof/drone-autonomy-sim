@@ -163,10 +163,18 @@ class Px4Vehicle(Vehicle):
                 break
         # simülatör yeni açıldıysa PX4'ün EKF'si / ev noktası 1-2 dk sürebiliyor
         print("  PX4 bağlandı, konum kestirimi ve ev noktası bekleniyor...", flush=True)
-        async for h in self.drone.telemetry.health():
-            if h.is_local_position_ok and h.is_home_position_ok:
-                break
-            await asyncio.sleep(0.5)
+
+        async def healthy():
+            async for h in self.drone.telemetry.health():
+                if h.is_local_position_ok and h.is_home_position_ok:
+                    return
+        # MAVSDK'nin sağlık bayrakları önceki görevden hemen sonra dakikalarca False kalabiliyor
+        # (PX4 o sırada sağlıklı ve konum akıyor). Bayraklar bilgi amaçlı; asıl kontrol PX4'ün
+        # arm reddi (arm_takeoff tekrar dener). 30 s'de gelmezse konum akışıyla devam.
+        try:
+            await asyncio.wait_for(healthy(), 30)
+        except asyncio.TimeoutError:
+            print("  uyarı: sağlık bayrakları gelmedi, konum akışıyla devam ediliyor", flush=True)
         self._loop.create_task(self._watch_position())
         self._loop.create_task(self._watch_in_air())
         self._loop.create_task(self._watch_attitude())
@@ -235,12 +243,22 @@ class Px4Vehicle(Vehicle):
         async def go():
             if self._in_air:  # önceki görevden havada kalmış: kalkışı atla, irtifaya çık
                 return
+            from mavsdk.action import ActionError
             await self.drone.action.set_takeoff_altitude(min(alt_m, 10.0))
-            await self.drone.action.arm()
+            for attempt in range(30):   # PX4 hazır değilse arm'ı reddeder: bekleyip tekrar dene
+                try:
+                    await self.drone.action.arm()
+                    break
+                except ActionError as ex:
+                    if attempt == 29:
+                        raise
+                    if attempt % 5 == 0:
+                        print(f"  arm reddedildi ({ex}), tekrar deneniyor...", flush=True)
+                    await asyncio.sleep(3)
             await self.drone.action.takeoff()
             while -self._pos[2] < min(alt_m, 10.0) * 0.9:
                 await asyncio.sleep(0.2)
-        self._run(go(), timeout=120)
+        self._run(go(), timeout=200)
         n, e, _ = self._pos
         self.goto(n, e, -alt_m, 3.0)
 

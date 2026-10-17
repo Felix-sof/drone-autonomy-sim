@@ -1,5 +1,5 @@
 """dataset/raw altındaki tüm uçuşları birleştirip train/val olarak ayırır (YOLO formatı)."""
-import random
+import hashlib
 import shutil
 import sys
 from pathlib import Path
@@ -16,10 +16,10 @@ if not images:
 # Bölme KARE değil TUR (oturum klasörü) bazında: art arda kareler neredeyse aynı olduğu için
 # kare bazında bölünce doğrulama eğitimin kopyası oluyor ve başarı olduğundan yüksek çıkıyor
 # (orman modelinde val mAP50 0.81 gösterip canlı sahnede arabaları kaçırdı).
+# Tur, adının özetine göre val'e düşer: yeni tur eklemek eskilerin yerini DEĞİŞTİRMEZ, böylece
+# eski ve yeni modeller aynı doğrulama turlarında karşılaştırılabilir.
 sessions = sorted({img.parent.parent.name for img in images})
-random.seed(0)
-random.shuffle(sessions)
-val_sessions = set(sessions[:max(1, round(len(sessions) * VAL_RATIO))])
+val_sessions = {s for s in sessions if int(hashlib.md5(s.encode()).hexdigest(), 16) % 1000 < VAL_RATIO * 1000}
 
 shutil.rmtree(OUT, ignore_errors=True)
 n_val = 0
