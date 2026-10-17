@@ -68,8 +68,12 @@ kişi görülürse vazgeç → bırak → seyir irtifasına dikey çık.
 
 Gerçek drone'da bunun için:
 - **Aşağı bakan mesafe sensörü ŞART.** PX4'te `height_agl()` kalkış noktasına göre irtifadır;
-  eğimli arazide 5 m hedef, yerden 2 m ya da 8 m olabilir. Lidar ile `EKF2_RNG_CTRL` açılmalı ve
-  `height_agl()` mesafe sensöründen okunmalı.
+  eğimli arazide 5 m hedef, yerden 2 m ya da 8 m olabilir. `Px4Vehicle.height_agl()` PX4'ün
+  yayınladığı `DISTANCE_SENSOR` mesajını otomatik kullanır (son 0.5 s içinde, menzil içinde ve
+  eğim < 30° ise, eğim düzeltmeli); yoksa kalkış noktasına göre irtifaya düşer. Lidar menzili
+  (TF-Luna ~8 m, LightWare SF11 ~100 m) bırakma irtifasından büyük olmalı. PX4'te sensörü
+  tanıt (`SENS_EN_TFLUNA` vb.) ve `EKF2_RNG_CTRL` ile EKF'e de ver. Not: sensör paketi bırakırken
+  teslimat noktasındaki nesneyi (araba tavanı, çalı) de ölçer; noktalar düz zeminde olmalı.
 - **Alçalma koridoru boş olmalı:** ağaç dalı, kablo, direk. Kod bunları görmez; teslimat
   noktaları açık alanda seçilmeli (simülasyonda açıklıklarda).
 - Alçalırken pervane rüzgârı hafif paketleri savurur, toz kaldırır; paket kapalı ve ağırlığı

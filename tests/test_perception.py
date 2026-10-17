@@ -49,3 +49,13 @@ def test_horizon_returns_none():
     # burun 89° aşağıda: kamera neredeyse yatay geriye bakar; görüntünün ALT kenarı
     # (gövdenin arkası) ufkun üstüne bakar -> yerde kesişim yok
     assert pixel_to_ground(SHAPE, 640, 719, H, 0, math.radians(-89), 0) is None
+
+
+def test_range_to_agl():
+    import math as _m
+    from vehicle import range_to_agl
+    assert abs(range_to_agl(5.0, 0.2, 12.0, 0.0, 0.0) - 5.0) < 1e-9
+    assert abs(range_to_agl(5.0, 0.2, 12.0, _m.radians(10), 0.0) - 5.0 * _m.cos(_m.radians(10))) < 1e-9
+    assert range_to_agl(15.0, 0.2, 12.0, 0, 0) is None        # menzil dışı
+    assert range_to_agl(float("nan"), 0.2, 12.0, 0, 0) is None
+    assert range_to_agl(5.0, 0.2, 12.0, _m.radians(40), 0) is None   # çok eğik

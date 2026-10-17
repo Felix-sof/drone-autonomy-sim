@@ -17,6 +17,10 @@ RUNS = r"C:\UE\drone_runs"
 def run(args):
     from ultralytics import YOLO  # büyük yığınlı iş parçacığında içe aktarılsın (aşağıya bak)
 
+    if args.resume:   # yarıda kalan eğitimi last.pt'den sürdür (ayarlar oradan okunur)
+        YOLO(args.resume).train(resume=True)
+        print(rf"En iyi model: {RUNS}\{args.name}\weightsest.pt")
+        return
     model = YOLO(args.model)
     model.train(
         data=args.data,
@@ -41,6 +45,7 @@ if __name__ == "__main__":  # Windows'ta veri yükleyici işçileri için gerekl
     ap.add_argument("--imgsz", type=int, default=960)
     ap.add_argument("--data", default=DATA, help="ör. C:/UE/mixed/data.yaml (simülasyon + VisDrone)")
     ap.add_argument("--no-plots", action="store_true", help="Eğitim grafiklerini çizme")
+    ap.add_argument("--resume", default=None, help="yarıda kalan eğitimin last.pt'si")
     args = ap.parse_args()
 
     # Windows'ta iş parçacığı yığını 1 MB; matplotlib'in pyparsing grameri bu sınıra

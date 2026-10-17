@@ -14,7 +14,8 @@ Ortak arayüz:
     velocity_body(vx, vy, vz)             gövde ekseninde hız komutu (yenilenene kadar sürer)
     velocity_ned(vn, ve, vd)              dünya ekseninde hız komutu (eğimden etkilenmez)
     attitude() -> (roll, pitch, yaw)      radyan; kamera eğim telafisi için
-    height_agl() -> m                     zeminden yükseklik (düz arazi; PX4'te kalkış noktasına göre)
+    height_agl() -> m                     zeminden yükseklik (PX4: aşağı bakan mesafe sensörü varsa
+                                          ondan, yoksa kalkış noktasına göre — düz arazi varsayımı)
     battery() -> 0..1 ya da None          kalan pil oranı
     hover()                               olduğu yerde dur
     land()                                in, motorları kapat (bekler)
@@ -26,6 +27,18 @@ import asyncio
 import math
 import threading
 import time
+
+
+RANGE_MAX_AGE_S = 0.5   # bundan eski mesafe sensörü ölçümü kullanılmaz
+
+
+def range_to_agl(r, r_min, r_max, roll, pitch):
+    """Aşağı bakan mesafe sensörü okumasını (eğik ışın) dikey yüksekliğe çevirir; geçersizse None."""
+    if r is None or not math.isfinite(r) or not (r_min < r < r_max):
+        return None   # menzil dışı: ölçüm yok ya da güvenilmez
+    if abs(roll) > math.radians(30) or abs(pitch) > math.radians(30):
+        return None   # çok eğik: ışın zemine değil yana bakıyor olabilir
+    return r * math.cos(roll) * math.cos(pitch)
 
 
 def quat_to_euler(w, x, y, z):
@@ -135,6 +148,7 @@ class Px4Vehicle(Vehicle):
         self._att = (0.0, 0.0, 0.0)
         self._got_pos = False
         self._battery = None
+        self._range = None        # (okuma_m, min_m, max_m, zaman)
         self._goto_task = None
         self._run(self._connect(address), timeout=connect_timeout)
 
@@ -157,6 +171,7 @@ class Px4Vehicle(Vehicle):
         self._loop.create_task(self._watch_in_air())
         self._loop.create_task(self._watch_attitude())
         self._loop.create_task(self._watch_battery())
+        self._loop.create_task(self._watch_range())
         while not self._got_pos:      # ilk telemetri gelmeden konum (0, 0, 0) görünmesin
             await asyncio.sleep(0.05)
 
@@ -173,6 +188,14 @@ class Px4Vehicle(Vehicle):
     async def _watch_battery(self):
         async for b in self.drone.telemetry.battery():
             self._battery = b.remaining_percent / 100.0 if b.remaining_percent > 1.0 else b.remaining_percent
+
+    async def _watch_range(self):
+        """Aşağı bakan lidar/mesafe sensörü (gerçek drone; SITL none_iris'te yok, akış boş kalır)."""
+        try:
+            async for d in self.drone.telemetry.distance_sensor():
+                self._range = (d.current_distance_m, d.minimum_distance_m, d.maximum_distance_m, time.time())
+        except Exception:
+            self._range = None
 
     async def _watch_in_air(self):
         async for in_air in self.drone.telemetry.in_air():
@@ -280,7 +303,11 @@ class Px4Vehicle(Vehicle):
         return self._vel
 
     def height_agl(self):
-        return -self._pos[2]  # yerel orijin kalkış noktası (yerde)
+        if self._range is not None and time.time() - self._range[3] < RANGE_MAX_AGE_S:
+            h = range_to_agl(*self._range[:3], *self._att[:2])
+            if h is not None:
+                return h
+        return -self._pos[2]  # yedek: yerel orijin kalkış noktası (düz arazi varsayımı)
 
     def battery(self):
         return self._battery
