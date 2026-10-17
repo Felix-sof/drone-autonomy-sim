@@ -124,7 +124,7 @@ class Px4Vehicle(Vehicle):
     Offboard modunda MAVSDK son hedefi otopilota sürekli (20 Hz) yeniden gönderir.
     """
 
-    def __init__(self, address="udp://:14550", connect_timeout=60):
+    def __init__(self, address="udp://:14550", connect_timeout=180):
         from mavsdk import System
         self._loop = asyncio.new_event_loop()
         threading.Thread(target=self._loop.run_forever, daemon=True).start()
@@ -147,6 +147,8 @@ class Px4Vehicle(Vehicle):
         async for state in self.drone.core.connection_state():
             if state.is_connected:
                 break
+        # simülatör yeni açıldıysa PX4'ün EKF'si / ev noktası 1-2 dk sürebiliyor
+        print("  PX4 bağlandı, konum kestirimi ve ev noktası bekleniyor...", flush=True)
         async for h in self.drone.telemetry.health():
             if h.is_local_position_ok and h.is_home_position_ok:
                 break

@@ -29,12 +29,20 @@ AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştire
 | Aynı modelin **gerçek** drone görüntülerinde (VisDrone val, 548 görüntü, 16k araç) başarısı | mAP50 **0.02** — sadece simülasyonla eğitilen model gerçekte çalışmıyor → karma eğitim |
 | **PX4 SITL ile tam otonom görev** (MAVLink/MAVSDK, gimbal'lı kamera, karma model), 4 görev × 3 paket | **12/12 isabet, 12 farklı araba, 0 yanlış alarm**; ArUco iniş hatası ort. **7 cm**; görev ~2.5 dk |
 | **Teslimat noktası modu** (PX4): araba bul → yanındaki numaralı ArUco noktasına bırak, 4 görev | **12/12 paket işaretçinin içinde** (merkeze ort. ~0.45 m), araca çarpan 0 |
+| **Alçalıp bırakma** (PX4, teslimat noktası): işaretçiye ortalı 25 → 5 m dikey alçal, bırak, geri çık; 3 görev × 3 paket | **9/9**, işaretçi merkezine ort. **0.05 m**, çarpma hızı ~**9.8 m/s**; görev ~232 s |
+| Aynı görev, 25 m'den serbest bırakma (karşılaştırma) | 9/9, merkeze ort. 0.50 m, çarpma hızı ~**22 m/s**; görev ~171 s |
 | Negatif test: araçların %40'ının teslimat işaretçisi kaldırıldı | işaretçisiz araca teslimat **0** (drone bırakmadan aramaya devam etti) |
 | PX4 tam görev **rüzgarda** (5 m/s ×2, 8 m/s ×1) | **9/9 isabet**, ArUco iniş 3-10 cm — *not: AirSim rüzgarı drone'u etkiliyor, düşen paketi etkilemiyor; gerçekte paket sürüklenir* |
 | Karma model (simülasyon + VisDrone) gerçek drone görüntülerinde | mAP50 **0.86** (simülasyonda 0.82) |
 
 İsabet = paketin **ilk temas** noktası hedef arabanın üstten görünen ayak izinde mi
 (başka araba / ağaç / yer ayrı sayılır). Kavisli tavandan sekme ayrıca ölçülür.
+
+*Ölçüm notu (2026-10-17):* Unreal nesne konumunu ~45 Hz günceller; daha sık okununca aynı konum
+tekrar geliyor ve eski kod bunu "hız sıfır = çarptı" sanıp ilk teması bazen düşüşün ortasında
+işaretliyordu. Düşüş dikey olduğu için yatay sonuçlar (merkeze uzaklık, işaretçi içinde mi)
+pek etkilenmez, ama bu tarihten önceki **tavan modu "ağaç/yer" ayrımı yaklaşıktır**. Düzeltildi
+(`tests/test_impact.py`); çarpma hızı da artık ölçülüyor.
 
 ### Öğrenilenler
 - **Kare bazında train/val bölmek yalan söyler:** art arda kareler neredeyse aynı; ilk orman
@@ -55,6 +63,11 @@ AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştire
   indirdi ve PX4 görevleri 12/12 oldu.
 - **Kalan darboğaz tespit:** bırakılan her paket bir arabaya isabet ediyor; kayıplar modelin
   bazı arabaları hiç görmemesinden (recall 0.75). Sonraki adım daha çok/çeşitli veri.
+
+- **Gerçek teslimat drone'ları alçalıp bırakır:** Amazon MK30 ~4 m, Wing ~7 m'de durup iple
+  indirir, Skydio kurtarma şamandırası için ~7.5 m önerir. 25 m'den serbest düşen paket ~22 m/s
+  ile çarpıyor; 5 m'ye alçalmak bunu ~10 m/s'ye indirdi ve isabeti 10 kat iyileştirdi (0.50 → 0.05 m),
+  çünkü 25 m'de 1 piksellik hizalama hatası yerde 5 kat büyük. Bedeli paket başına ~20 s.
 
 ### Proje yönü: teslimat ve arama-kurtarma
 Paket artık aracın tavanına değil, aracın yanındaki **işaretli teslimat noktasına** bırakılıyor
@@ -107,6 +120,12 @@ python training/train.py --model yolo11s.pt --epochs 60 --name car_forest2   # e
 python mission/drop_test.py --deneme 10 --irtifa 25      # paket bırakma (kusursuz tespit)
 python mission/drop_test.py --model C:/UE/drone_runs/car_forest2/weights/best.pt --irtifa 25   # hedefi YOLO bulsun
 python mission/autonomous_mission.py --model C:/UE/drone_runs/car_forest2/weights/best.pt --teslimat 3 --goster
+
+# taşınabilir görev çekirdeği (bash mission/sim.sh px4 ile simülatör + PX4 açıkken)
+python mission/run_autonomy.py --model C:/UE/drone_runs/car_mixed2/weights/best.pt --backend px4 --teslimat 3
+#   --birakma-irtifa 5   hedefin üstünde 5 m'ye alçalıp bırak (dropzone varsayılanı; 0 = seyir irtifasından)
+#   --mod sar --imgsz 1280   arama-kurtarma (iki sınıflı model; varsayılan bırakma 8 m)
+#   --ruzgar 6,3   --isaretcisiz 0.4   rüzgar / negatif test
 ```
 
 İnsansız (gece) çalıştırma: `bash mission/overnight.sh 30 20 car_forest2 60` — Unreal'i
@@ -118,8 +137,9 @@ Diğer bayraklar: `setup` = haritayı yeniden kur, `play` = Play'i başlat, `qui
 ## Testler (simülatörsüz)
 
 ```
-python -m pytest tests -q      # 24 test: geometri, güvenlik (geofence/pil/süre), kapalı döngü hizalama,
-                               # başka arabaya sıçramama, SAR güvenli mesafe — sahte drone ile
+python -m pytest tests -q      # 29 test: geometri, güvenlik (geofence/pil/süre), kapalı döngü hizalama,
+                               # başka arabaya sıçramama, SAR güvenli mesafe, alçalıp bırakma
+                               # (altta kişi varsa vazgeçme), çarpma ölçümü — sahte drone ile
 ```
 
 ## Bilinen tuzaklar (UE 5.8 + Cosys-AirSim 3.5)
@@ -131,6 +151,9 @@ python -m pytest tests -q      # 24 test: geometri, güvenlik (geofence/pil/sür
 - Donanımsal ışın izleme açıkken NVIDIA sürücüsü çöküyor: `r.RayTracing=False`.
 - Alt kamera gövdenin içindeyse tespit çizgisini drone'un kendisi keser: kamera Z=0.3.
 - `cv2.imwrite` Türkçe karakterli yollara (Masaüstü) sessizce yazamıyor.
+- `simSpawnObject` ile, az önce silinen bir nesnenin adıyla hemen yeni nesne oluşturmak Unreal'i
+  çökertiyor (LevelActor.cpp:586); her pakete ayrı ad verilir.
+- Nesne konumu ~45 Hz güncelleniyor: daha sık okununca aynı değer tekrar gelir.
 
 ## Yol haritası
 
@@ -141,6 +164,7 @@ python -m pytest tests -q      # 24 test: geometri, güvenlik (geofence/pil/sür
 - [x] Rotasız tam otonom görev (3 görev, 9/9 isabet)
 - [x] İnsansız gece otomasyonu (Unreal'i bayrak dosyalarıyla aç/Play/kapat)
 - [ ] Tespiti güçlendirme: daha çok sahne, recall 0.75 → 0.9
-- [ ] Hareket halinde bırakma, rüzgar
+- [x] PX4 SITL, rüzgar (9/9), teslimat noktası modu (12/12), negatif test
+- [x] Alçalıp bırakma (5 m): merkeze 0.05 m, çarpma hızı 22 → 10 m/s
 - [ ] Arama-kurtarma: kişiyi bul, güvenli mesafeye yardım paketi bırak
 - [ ] Sabit kanatlı versiyon
