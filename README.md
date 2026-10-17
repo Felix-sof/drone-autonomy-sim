@@ -31,6 +31,7 @@ AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştire
 | **Teslimat noktası modu** (PX4): araba bul → yanındaki numaralı ArUco noktasına bırak, 4 görev | **12/12 paket işaretçinin içinde** (merkeze ort. ~0.45 m), araca çarpan 0 |
 | **Alçalıp bırakma** (PX4, teslimat noktası): işaretçiye ortalı 25 → 5 m dikey alçal, bırak, geri çık; 3 görev × 3 paket | **9/9**, işaretçi merkezine ort. **0.05 m**, çarpma hızı ~**9.8 m/s**; görev ~232 s |
 | Aynı görev, 25 m'den serbest bırakma (karşılaştırma) | 9/9, merkeze ort. 0.50 m, çarpma hızı ~**22 m/s**; görev ~171 s |
+| **25 m'den bırakma + ince hizalama** (bırakmadan önce 8 kare ortalaması, 12 cm tolerans), 3 görev × 3 paket | **9/9**, işaretçi merkezine ort. **0.048 m** (en kötü 0.08 m); görev ~198 s. Önceki 0.50 m'nin tamamı drone konumundan (30 cm tolerans, tam durmadan bırakma): düşüş kayması ~0, sabit sapma yok |
 | Negatif test: araçların %40'ının teslimat işaretçisi kaldırıldı | işaretçisiz araca teslimat **0** (drone bırakmadan aramaya devam etti) |
 | PX4 tam görev **rüzgarda** (5 m/s ×2, 8 m/s ×1) | **9/9 isabet**, ArUco iniş 3-10 cm — *not: AirSim rüzgarı drone'u etkiliyor, düşen paketi etkilemiyor; gerçekte paket sürüklenir* |
 | Karma model (simülasyon + VisDrone) gerçek drone görüntülerinde | mAP50 **0.86** (simülasyonda 0.82) |
