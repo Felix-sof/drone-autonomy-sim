@@ -131,7 +131,19 @@ def wait_until_rest(client, name, cam, timeout=8):
     still_since = None
     impact = None
     falling_fast = False
-    vmax = 0.0
+    hist = []          # (zaman, z) farklı fizik kareleri; çarpma hızı birkaç kare üzerinden
+    v_impact = None
+
+    def speed_before(t_end, z_end):
+        # okuma anı fizik karesine denk gelmediği için tek aralık gürültülü (yukarı kaçıyor):
+        # çarpmadan önceki ~0.15 s'nin ortalama hızı; serbest düşüşte ortalama, pencerenin ORTASINDAKİ
+        # hızdır: çarpma anına g*Δt/2 eklenir (sabit ivmede tam doğru)
+        old = [hz for hz in hist if hz[0] <= t_end - 0.15]
+        if not old:
+            return None
+        dt = t_end - old[-1][0]
+        return (z_end - old[-1][1]) / dt + 9.81 * dt / 2
+
     t0 = time.time()
     next_frame = 0.0
     while time.time() - t0 < timeout:
@@ -146,18 +158,22 @@ def wait_until_rest(client, name, cam, timeout=8):
             # hız 0 sanılıp "çarptı" denmesin; durma süresi yine de sayılsın
             if still_since is None:
                 still_since = now
+            elif falling_fast and impact is None and now - still_since > 0.1:
+                impact = last          # düşerken birden kıpırdamaz oldu: sekmeden durdu
+                v_impact = speed_before(last_t, last[2])
             elif now - still_since > 0.5 and now - t0 > 1.0:
                 break
             time.sleep(0.02)
             continue
         if last is not None:
             vz = (cur[2] - last[2]) / max(now - last_t, 1e-3)  # NED: + aşağı
-            if impact is None:
-                vmax = max(vmax, vz)
             if vz > 3.0:
                 falling_fast = True
             elif falling_fast and impact is None and vz < 1.0:
                 impact = last  # hızın kesildiği andan hemen önceki konum
+                v_impact = speed_before(last_t, last[2])
+            if impact is None:
+                hist.append((now, cur[2]))
             if np.linalg.norm(cur - last) < 0.003:
                 still_since = still_since or now
                 if now - still_since > 0.5 and now - t0 > 1.0:
@@ -167,7 +183,7 @@ def wait_until_rest(client, name, cam, timeout=8):
         last, last_t = cur, now
         time.sleep(0.02)
     global LAST_IMPACT_SPEED
-    LAST_IMPACT_SPEED = round(vmax, 1)
+    LAST_IMPACT_SPEED = None if v_impact is None else round(v_impact, 1)
     return last, (impact if impact is not None else last)
 
 
