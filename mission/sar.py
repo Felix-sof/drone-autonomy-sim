@@ -156,7 +156,7 @@ def align_over_person(vehicle, grab, detector, timeout=30):
 
 
 def sar_mission(vehicle, grab, detector, payload, area, alt=25.0, packages=3, speed=5.0,
-                landing=(0.0, 0.0), on_drop=None, log=print, drop_alt=None):
+                landing=(0.0, 0.0), on_drop=None, log=print, drop_alt=None, approve=None):
     """drop_alt: bırakma noktasında bu irtifaya (zeminden, m) alçalıp bırakır; None = seyir irtifası."""
     route = lawnmower(area, LANE_SPACING_M, alt)
     log(f"SAR arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
@@ -213,6 +213,10 @@ def sar_mission(vehicle, grab, detector, payload, area, alt=25.0, packages=3, sp
                     vehicle.goto(*vehicle.position()[:2], -alt, 3.0)
                     continue
                 vehicle.wait_still(max_speed=0.05)
+            if approve is not None and not approve(grab(), f"SAR yardım paketi, {vehicle.height_agl():.1f} m"):
+                log("  pilot onay vermedi, BIRAKILMADI")
+                vehicle.goto(*vehicle.position()[:2], -alt, 3.0)
+                continue
             handle = payload.release()
             n, e, _ = vehicle.position()
             rec = {"no": len(results) + 1, "kisi_tahmini": [round(pn, 2), round(pe, 2)],

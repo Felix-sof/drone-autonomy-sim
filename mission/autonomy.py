@@ -231,10 +231,12 @@ def nearest_dropzone(vehicle, img):
 
 
 def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliveries=3, speed=5.0,
-                       landing=(0.0, 0.0), on_drop=None, log=print, mode="dropzone", drop_alt=None):
+                       landing=(0.0, 0.0), on_drop=None, log=print, mode="dropzone", drop_alt=None, approve=None):
     """Tam görev. (teslimatlar, işaretçiyle_indi_mi, süre_s, iptal_sebebi) döndürür.
 
     drop_alt: dropzone modunda bu irtifaya (zeminden, m) alçalıp bırakır; None = seyir irtifasından.
+    approve:  isteğe bağlı approve(img, açıklama) -> bool; bırakmadan hemen önce çağrılır
+              (gerçek uçuşta pilot onayı). False dönerse paket bırakılmaz.
     """
     route = lawnmower(area, LANE_SPACING_M, alt)
     log(f"Arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
@@ -312,6 +314,11 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
                 vehicle.wait_still(max_speed=0.05)
                 n, e, _ = vehicle.position()
                 served_ids.add(marker_id)
+            if approve is not None and not approve(grab(), f"teslimat #{marker_id}, {vehicle.height_agl():.1f} m"):
+                log("  pilot onay vermedi, BIRAKILMADI")
+                if vehicle.height_agl() < alt - 0.5:
+                    vehicle.goto(n, e, -alt, 3.0)
+                continue
             dropped.append((n, e))
             handle = payload.release()
             rec = {"no": len(results) + 1, "n": round(n, 2), "e": round(e, 2), "guven": round(conf, 2),

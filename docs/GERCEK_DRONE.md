@@ -99,6 +99,10 @@ Gerçek drone'da bunun için:
 - Uçuş alanında insan olmasın; hedef olarak sadece kendi aracın ya da yere serilmiş bir işaret.
 - Bir gözlemci + kumandası elinde bir pilot olmadan otonom görev başlatma.
 - `run_real.py mission` açık onay (`--onay`) olmadan çalışmaz.
+- **Her bırakmadan önce pilot onayı:** drone bırakma noktasında (alçalmış hâlde) havada durur,
+  canlı görüntüyü gösterir ve konsolda `e` bekler; 20 s içinde onay gelmezse paketi bırakmadan
+  seyir irtifasına döner. dropzone modunda boş test alanı için `--onaysiz-birak` ile kapatılabilir,
+  `--mod-gorev sar`'da kapatılamaz.
 
 ## 6. Arama-kurtarma (SAR) için ek güvenlik kuralları
 
@@ -109,7 +113,8 @@ Gerçek kişilerin bulunduğu bir ortamda (`run_autonomy.py --mod sar`, `mission
   bırakmadan hemen önce altını yeniden kontrol eder, kişi yaklaşmışsa bırakmaz.
 - Tespit modeli kişileri **kaçırabilir** (küçük, ağaç altında, sıra dışı duruş). Bu yüzden
   "altında kimse görünmüyor" kesinlik değildir: gerçek uçuşta bırakmadan önce **pilot onayı**
-  (canlı görüntüyle) zorunlu tutulmalı; otomatik bırakma sadece boş test alanında denenmeli.
+  (canlı görüntüyle) zorunludur — `run_real.py --mod-gorev sar` bunu her pakette ister ve
+  kapatılamaz; otomatik bırakma sadece simülasyonda.
 - Paket hafif, yumuşak (köpük/kumaş) ya da paraşütlü olmalı; drone bırakma noktasına
   alçalarak bırakır (SAR varsayılanı 8 m; alçalırken her karede alt yeniden kontrol edilir,
   kişi görülürse bırakmadan yükselir). Seyir irtifası ağaç tepelerinin üstünde kalır (25 m).
