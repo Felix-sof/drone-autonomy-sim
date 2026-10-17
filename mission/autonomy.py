@@ -39,6 +39,10 @@ MAX_MISSES = 10       # takipte hedef bu kadar ardışık karede görünmezse va
 FENCE_MARGIN_M = 15   # görev alanının bu kadar dışına çıkılırsa görev iptal (geofence)
 MIN_BATTERY = 0.25    # kalan pil bunun altına düşerse eve dön
 MAX_MISSION_S = 900   # görev süresi sınırı (pil süresine göre ayarla)
+FINE_TOL_M = 0.12     # bırakmadan önce ince hizalama: ortalama sapma bundan küçük olmalı
+FINE_FRAMES = 8       # ince hizalamada ortalaması alınan kare sayısı
+RELEASE_BIAS_NE = (0.0, 0.0)   # ölçülen sabit sapma telafisi (m): drone işaretçiye göre bu kadar
+                               # kaydırılmış konumda bırakır (mission.json "release_bias_ne_m")
 DESCENT_SPEED = 1.5   # m/s, bırakma için alçalma hızı
 PERSON_CLEAR_M = 5.0  # alçalırken bırakma noktasına bu kadar yakın kişi görülürse bırakılmaz
 DROPZONE_MAX_M = 5.5  # teslimat işaretçisi arabanın en fazla bu kadar yakınında (kendi noktası 3.8 m'de;
@@ -129,8 +133,47 @@ def align_over_target(vehicle, grab, detector, timeout=40, show=True):
     return False
 
 
-def align_over_marker(vehicle, grab, marker_id, timeout=40):
-    """Belirli bir ArUco işaretçisinin tam üstüne gelene kadar NED hız komutuyla kayar."""
+def marker_offset_avg(vehicle, grab, marker_id, n=FINE_FRAMES):
+    """Drone dururken n karede işaretçinin yerdeki ortalama konumu (drone'a göre Δn, Δe) ve
+    karelerin yayılımı (m). İşaretçi görülemezse None."""
+    pts = []
+    for _ in range(n * 3):
+        if len(pts) >= n:
+            break
+        img = grab()
+        roll, pitch, yaw = vehicle.attitude()
+        m = next((mk for mk in find_markers(img) if mk[0] == marker_id), None)
+        if m is None:
+            continue
+        g = pixel_to_ground(img.shape, *m[1], vehicle.height_agl(), roll, pitch, yaw)
+        if g is not None:
+            pts.append(g)
+    if len(pts) < max(3, n // 2):
+        return None
+    mn = sum(p[0] for p in pts) / len(pts)
+    me = sum(p[1] for p in pts) / len(pts)
+    spread = max(math.hypot(p[0] - mn, p[1] - me) for p in pts)
+    return mn, me, spread
+
+
+def fine_align_marker(vehicle, grab, marker_id, tries=3):
+    """Bırakmadan hemen önce: dur, FINE_FRAMES karenin ortalamasıyla ölç; RELEASE_BIAS_NE dahil
+    hedefe FINE_TOL_M'den uzaksa sıkı toleransla tekrar hizalan. Son ölçüm (Δn, Δe, yayılım) ya da None."""
+    last = None
+    for _ in range(tries):
+        vehicle.wait_still(max_speed=0.05)
+        last = marker_offset_avg(vehicle, grab, marker_id)
+        if last is None:
+            return None
+        if math.hypot(last[0] - RELEASE_BIAS_NE[0], last[1] - RELEASE_BIAS_NE[1]) < FINE_TOL_M:
+            return last
+        align_over_marker(vehicle, grab, marker_id, tol=FINE_TOL_M * 0.8, gain=0.4)
+    return last
+
+
+def align_over_marker(vehicle, grab, marker_id, timeout=40, tol=ALIGN_TOL_M, gain=0.5):
+    """Belirli bir ArUco işaretçisinin (RELEASE_BIAS_NE kadar kaydırılmış) üstüne gelene kadar
+    NED hız komutuyla kayar."""
     t0 = time.time()
     misses, good = 0, 0
     vn_f = ve_f = 0.0
@@ -149,13 +192,13 @@ def align_over_marker(vehicle, grab, marker_id, timeout=40):
         g = pixel_to_ground(img.shape, *m[1], vehicle.height_agl(), roll, pitch, yaw)
         if g is None:
             continue
-        dn, de = g
+        dn, de = g[0] - RELEASE_BIAS_NE[0], g[1] - RELEASE_BIAS_NE[1]
         err = math.hypot(dn, de)
-        good = good + 1 if err < ALIGN_TOL_M else 0
+        good = good + 1 if err < tol else 0
         if good >= 3:
             vehicle.hover()
             return True
-        sp = min(1.5, 0.5 * err)
+        sp = min(1.5, gain * err)
         vn, ve = (dn / err * sp, de / err * sp) if err > 1e-6 else (0.0, 0.0)
         vn_f, ve_f = 0.5 * vn_f + 0.5 * vn, 0.5 * ve_f + 0.5 * ve
         vehicle.velocity_ned(vn_f, ve_f, 0.0)
@@ -311,7 +354,10 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
                         n, e, _ = vehicle.position()
                         vehicle.goto(n, e, -alt, 3.0)
                         continue
-                vehicle.wait_still(max_speed=0.05)
+                fine = fine_align_marker(vehicle, grab, marker_id)
+                if fine is None:
+                    log("  ince hizalamada işaretçi görülemedi, BIRAKILMADI; aramaya devam")
+                    continue
                 n, e, _ = vehicle.position()
                 served_ids.add(marker_id)
             if approve is not None and not approve(grab(), f"teslimat #{marker_id}, {vehicle.height_agl():.1f} m"):
@@ -323,6 +369,9 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
             handle = payload.release()
             rec = {"no": len(results) + 1, "n": round(n, 2), "e": round(e, 2), "guven": round(conf, 2),
                    "isaretci": marker_id, "zaman_s": round(time.time() - t_start, 1)}
+            if mode == "dropzone":   # bırakma anında kameranın ölçtüğü işaretçi sapması (ortalama)
+                rec["kamera_isaretci_ne_m"] = [round(fine[0], 3), round(fine[1], 3)]
+                rec["kamera_yayilim_m"] = round(fine[2], 3)
             rec["birakma_irtifa_m"] = round(vehicle.height_agl(), 2)
             if on_drop is not None:
                 rec.update(on_drop(handle, marker_id) or {})

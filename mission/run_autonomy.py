@@ -63,6 +63,8 @@ def main():
     cfg = load_mission()
     import perception
     perception.CAMERA_STABILIZED = cfg.get("camera_gimbal", False)
+    import autonomy
+    autonomy.RELEASE_BIAS_NE = tuple(cfg.get("release_bias_ne_m", (0.0, 0.0)))
     perception.CAMERA_YAW_LOCK = (None if cfg.get("camera_yaw_lock_deg") is None
                                   else __import__("math").radians(cfg["camera_yaw_lock_deg"]))
     scene = json.loads((ROOT / "mission" / "scene_objects.json").read_text(encoding="utf-8"))
@@ -105,6 +107,7 @@ def main():
     payload = TetherPayload(client, G) if (args.mod == "sar" and args.teslim == "ip") else SimPayload(client)
 
     def on_drop(pkg, marker_id=None):  # sadece değerlendirme: Unreal'in gerçek konumlarıyla
+        drone = client.simGetVehiclePose().position     # bırakma anındaki gerçek drone konumu
         _, impact = wait_until_rest(client, pkg, cam)
         client.simDestroyObject(pkg)
         if args.mod == "dropzone":
@@ -117,7 +120,11 @@ def main():
             hit_car = classify_impact(client, scene["cars"], car, impact) in ("hedef", "baska_araba")
             ok = on_pad and not hit_car
             text = ("TESLİMAT NOKTASINA ✔" if ok else ("araca çarptı ✘" if hit_car else "noktanın dışına ✘"))
-            return {"isabet": ok, "araba": car, "isaretci_merkezine_m": round(math.hypot(dx, dy), 2),
+            # hata ayrıştırması: drone işaretçiye göre neredeydi (hizalama) + paket nereye düştü (düşüş)
+            return {"carpma_ofset_ne_m": [round(dx, 3), round(dy, 3)],
+                    "drone_ofset_ne_m": [round(drone.x_val - pad.x_val, 3), round(drone.y_val - pad.y_val, 3)],
+                    "dusus_kaymasi_ne_m": [round(impact[0] - drone.x_val, 3), round(impact[1] - drone.y_val, 3)],
+                    "isabet": ok, "araba": car, "isaretci_merkezine_m": round(math.hypot(dx, dy), 2),
                     "carpma_hizi_ms": drop_test.LAST_IMPACT_SPEED,
                     "araca_carpti": hit_car, "sonuc_metni": f"{text} (işaretçi #{marker_id} merkezine "
                                                          f"{math.hypot(dx, dy):.2f} m)"}

@@ -193,3 +193,19 @@ def test_sar_descend_clear(monkeypatch):
     v2 = FakeVehicle(0, 0, alt=25)
     w2 = FakeWorld(v2, [(1.0, 1.0, 1)])            # tam altta kişi
     assert not sar.descend_clear(v2, w2.grab, w2, 8.0)
+
+
+def test_fine_align_reaches_tight_tolerance(monkeypatch):
+    v = FakeVehicle(0, 0, alt=25)
+    fake_marker(monkeypatch, v, 0.25, -0.2)           # gevşek hizalamadan kalan 32 cm sapma
+    fine = autonomy.fine_align_marker(v, FakeWorld(v, []).grab, 3)
+    assert fine is not None and math.hypot(fine[0], fine[1]) < autonomy.FINE_TOL_M
+    assert math.hypot(v.p[0] - 0.25, v.p[1] + 0.2) < autonomy.FINE_TOL_M
+
+
+def test_release_bias_shifts_alignment(monkeypatch):
+    v = FakeVehicle(0, 0, alt=25)
+    fake_marker(monkeypatch, v, 0.0, 0.0)
+    monkeypatch.setattr(autonomy, "RELEASE_BIAS_NE", (0.5, 0.0))   # paket drone'un 0.5 m kuzeyine düşüyormuş
+    autonomy.fine_align_marker(v, FakeWorld(v, []).grab, 3)
+    assert abs(v.p[0] + 0.5) < autonomy.FINE_TOL_M and abs(v.p[1]) < autonomy.FINE_TOL_M
