@@ -43,6 +43,8 @@ FINE_TOL_M = 0.12     # bırakmadan önce ince hizalama: ortalama sapma bundan k
 FINE_FRAMES = 8       # ince hizalamada ortalaması alınan kare sayısı
 RELEASE_BIAS_NE = (0.0, 0.0)   # ölçülen sabit sapma telafisi (m): drone işaretçiye göre bu kadar
                                # kaydırılmış konumda bırakır (mission.json "release_bias_ne_m")
+WIND_COMP = None      # rüzgar telafisi (isteğe bağlı): None | ("known", (wn, we)) | ("tilt", k_d)
+                      # sadece havada dururken, işaretli teslimat noktasına bırakmada kullanılır
 DESCENT_SPEED = 1.5   # m/s, bırakma için alçalma hızı
 PERSON_CLEAR_M = 5.0  # alçalırken bırakma noktasına bu kadar yakın kişi görülürse bırakılmaz
 DROPZONE_MAX_M = 5.5  # teslimat işaretçisi arabanın en fazla bu kadar yakınında (kendi noktası 3.8 m'de;
@@ -156,24 +158,46 @@ def marker_offset_avg(vehicle, grab, marker_id, n=FINE_FRAMES):
     return mn, me, spread
 
 
-def fine_align_marker(vehicle, grab, marker_id, tries=3):
+def estimate_wind(vehicle, n=15):
+    """Havada sabit dururken rüzgar (wn, we): WIND_COMP'e göre bilinen değer ya da eğimden tahmin."""
+    if WIND_COMP is None:
+        return 0.0, 0.0
+    kind, val = WIND_COMP
+    if kind == "known":
+        return val
+    import ballistics
+    vehicle.wait_still(max_speed=0.05)
+    rs, ps, ys = [], [], []
+    for _ in range(n):
+        r, p, y = vehicle.attitude()
+        rs.append(r)
+        ps.append(p)
+        ys.append(y)
+        time.sleep(0.1)
+    return ballistics.wind_from_tilt(sum(rs) / n, sum(ps) / n, sum(ys) / n, val)
+
+
+def fine_align_marker(vehicle, grab, marker_id, tries=3, target=None):
     """Bırakmadan hemen önce: dur, FINE_FRAMES karenin ortalamasıyla ölç; RELEASE_BIAS_NE dahil
-    hedefe FINE_TOL_M'den uzaksa sıkı toleransla tekrar hizalan. Son ölçüm (Δn, Δe, yayılım) ya da None."""
+    hedefe FINE_TOL_M'den uzaksa sıkı toleransla tekrar hizalan. Son ölçüm (Δn, Δe, yayılım) ya da None.
+    target: işaretçinin drone'a göre olması gereken yeri (varsayılan RELEASE_BIAS_NE)."""
+    target = RELEASE_BIAS_NE if target is None else target
     last = None
     for _ in range(tries):
         vehicle.wait_still(max_speed=0.05)
         last = marker_offset_avg(vehicle, grab, marker_id)
         if last is None:
             return None
-        if math.hypot(last[0] - RELEASE_BIAS_NE[0], last[1] - RELEASE_BIAS_NE[1]) < FINE_TOL_M:
+        if math.hypot(last[0] - target[0], last[1] - target[1]) < FINE_TOL_M:
             return last
-        align_over_marker(vehicle, grab, marker_id, tol=FINE_TOL_M * 0.8, gain=0.4)
+        align_over_marker(vehicle, grab, marker_id, tol=FINE_TOL_M * 0.8, gain=0.4, target=target)
     return last
 
 
-def align_over_marker(vehicle, grab, marker_id, timeout=40, tol=ALIGN_TOL_M, gain=0.5):
+def align_over_marker(vehicle, grab, marker_id, timeout=40, tol=ALIGN_TOL_M, gain=0.5, target=None):
     """Belirli bir ArUco işaretçisinin (RELEASE_BIAS_NE kadar kaydırılmış) üstüne gelene kadar
     NED hız komutuyla kayar."""
+    target = RELEASE_BIAS_NE if target is None else target
     t0 = time.time()
     misses, good = 0, 0
     vn_f = ve_f = 0.0
@@ -192,7 +216,7 @@ def align_over_marker(vehicle, grab, marker_id, timeout=40, tol=ALIGN_TOL_M, gai
         g = pixel_to_ground(img.shape, *m[1], vehicle.height_agl(), roll, pitch, yaw)
         if g is None:
             continue
-        dn, de = g[0] - RELEASE_BIAS_NE[0], g[1] - RELEASE_BIAS_NE[1]
+        dn, de = g[0] - target[0], g[1] - target[1]
         err = math.hypot(dn, de)
         good = good + 1 if err < tol else 0
         if good >= 3:
@@ -354,7 +378,16 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
                         n, e, _ = vehicle.position()
                         vehicle.goto(n, e, -alt, 3.0)
                         continue
-                fine = fine_align_marker(vehicle, grab, marker_id)
+                target, wind, off = RELEASE_BIAS_NE, None, (0.0, 0.0)
+                if WIND_COMP is not None:
+                    import ballistics
+                    wind = estimate_wind(vehicle)
+                    off = ballistics.release_offset(max(0.5, vehicle.height_agl() - 0.7), wind)
+                    # drone işaretçinin `off` kadar yanında olmalı -> işaretçi drone'a göre -off'ta
+                    target = (RELEASE_BIAS_NE[0] - off[0], RELEASE_BIAS_NE[1] - off[1])
+                    log(f"  rüzgar {math.hypot(*wind):.1f} m/s ({wind[0]:+.1f}, {wind[1]:+.1f}) -> bırakma noktası "
+                        f"{math.hypot(*off):.1f} m rüzgara karşı kaydırıldı")
+                fine = fine_align_marker(vehicle, grab, marker_id, target=target)
                 if fine is None:
                     log("  ince hizalamada işaretçi görülemedi, BIRAKILMADI; aramaya devam")
                     continue
@@ -372,6 +405,9 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
             if mode == "dropzone":   # bırakma anında kameranın ölçtüğü işaretçi sapması (ortalama)
                 rec["kamera_isaretci_ne_m"] = [round(fine[0], 3), round(fine[1], 3)]
                 rec["kamera_yayilim_m"] = round(fine[2], 3)
+                if wind is not None:
+                    rec["ruzgar_tahmini_ne"] = [round(wind[0], 2), round(wind[1], 2)]
+                    rec["telafi_kaydirma_ne_m"] = [round(off[0], 2), round(off[1], 2)]
             rec["birakma_irtifa_m"] = round(vehicle.height_agl(), 2)
             if on_drop is not None:
                 rec.update(on_drop(handle, marker_id) or {})

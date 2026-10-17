@@ -86,3 +86,62 @@ class WinchPayload:
     def release(self):
         self.v._run(self.v.drone.winch.deliver(self.instance), timeout=180)
         return None
+
+
+class DragPayload(SimPayload):
+    """Serbest düşüş + hava direnci + rüzgar (AirSim'in fiziği pakete rüzgar uygulamıyor).
+
+    Paket fizik kapalı oluşturulur, konumu ballistics.py ile gerçek zamanlı adım adım sürülür;
+    zemine (ya da bir aracın tavanına) değince durur. wind_ne: simülasyondaki rüzgar (m/s).
+    car_tops: [(isim, tavan_z_ned)] — tavana çarpma kontrolü için (isteğe bağlı).
+    """
+
+    def __init__(self, client, ground_z, wind_ne=(0.0, 0.0), car_hit=None):
+        super().__init__(client)
+        self.ground_z = ground_z
+        self.wind = wind_ne
+        self.car_hit = car_hit          # car_hit(x, y, z) -> True ise o noktada araca çarptı
+        self.last_speed = None
+        self.impact = None
+
+    def release(self):
+        import math
+        import time
+
+        import ballistics as b
+        pose = self.c.simGetVehiclePose().position
+        vel = self.c.getMultirotorState().kinematics_estimated.linear_velocity
+        self.count += 1
+        name = self.c.simSpawnObject(
+            f"Package_{self.count}", "SM_Package",
+            self.airsim.Pose(self.airsim.Vector3r(pose.x_val, pose.y_val, pose.z_val + 0.7), self.airsim.Quaternionr()),
+            self.airsim.Vector3r(*PACKAGE_SIZE), physics_enabled=False)
+        n, e, d = pose.x_val, pose.y_val, pose.z_val + 0.7
+        vn, ve, vd = vel.x_val, vel.y_val, vel.z_val
+        k = 0.5 * b.RHO * b.PACKAGE_CD_A / b.PACKAGE_MASS_KG
+        wn, we = self.wind
+        z_end = self.ground_z - PACKAGE_SIZE[2] / 2
+        dt, t_prev = 0.005, time.time()
+        while True:
+            now = time.time()
+            steps = max(1, int((now - t_prev) / dt))   # gerçek zamanla eşit ilerle
+            t_prev = now
+            hit = False
+            for _ in range(steps):
+                rn, re, rd = vn - wn, ve - we, vd
+                s = math.sqrt(rn * rn + re * re + rd * rd)
+                vn -= k * s * rn * dt
+                ve -= k * s * re * dt
+                vd += (b.G - k * s * rd) * dt
+                n, e, d = n + vn * dt, e + ve * dt, d + vd * dt
+                if d >= z_end or (self.car_hit is not None and self.car_hit(n, e, d)):
+                    hit = True
+                    break
+            self.c.simSetObjectPose(name, self.airsim.Pose(self.airsim.Vector3r(n, e, min(d, z_end)),
+                                                           self.airsim.Quaternionr()), True)
+            if hit:
+                break
+            time.sleep(0.02)
+        self.impact = (n, e, min(d, z_end))
+        self.last_speed = round(math.sqrt(vn * vn + ve * ve + vd * vd), 1)
+        return name

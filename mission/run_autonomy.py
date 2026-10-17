@@ -47,6 +47,11 @@ def main():
     ap.add_argument("--imgsz", type=int, default=960, help="tespit çözünürlüğü (sar için 1280 önerilir)")
     ap.add_argument("--teslim", choices=["ip", "birak"], default="birak",
                     help="sar modunda: birak = 5 m+ uzağa serbest bırakma (varsayılan), ip = kişinin yanına ipli uzatma (sonraki aşama)")
+    ap.add_argument("--paket-fizigi", choices=["basit", "gercekci"], default="basit",
+                    help="gercekci: düşen pakete hava direnci + rüzgar (AirSim'in fiziği uygulamıyor)")
+    ap.add_argument("--ruzgar-telafi", choices=["yok", "bilinen", "egim"], default="yok",
+                    help="dropzone'da bırakma noktasını rüzgara karşı kaydır: bilinen = simülasyonun gerçek "
+                         "rüzgarı (hesap testi), egim = drone'un eğiminden tahmin (gerçek hayattaki yol)")
     ap.add_argument("--biyom", default="sabit",
                     help="görev dünyası: sabit (kurulumdaki yaz ormanı) | rastgele | yaz_ormani | kis_ormani | "
                          "seyrek_orman | col | kayalik")
@@ -104,11 +109,28 @@ def main():
         print(f"Rüzgar: kuzey {wn} m/s, doğu {we} m/s ({math.hypot(wn, we):.1f} m/s)")
     detector = CarDetector(args.model, imgsz=args.imgsz)
     from payload import TetherPayload
-    payload = TetherPayload(client, G) if (args.mod == "sar" and args.teslim == "ip") else SimPayload(client)
+    if args.mod == "sar" and args.teslim == "ip":
+        payload = TetherPayload(client, G)
+    elif args.paket_fizigi == "gercekci":
+        from drop_test import on_car
+        from payload import DragPayload
+        roof = scene["car_height_m"]
+        payload = DragPayload(client, G, (wn, we), car_hit=lambda x, y, z: z > G - roof - 0.05 and any(
+            on_car(client, c, (x, y, z)) for c in scene["cars"]))
+    else:
+        payload = SimPayload(client)
+    import autonomy
+    if args.ruzgar_telafi == "bilinen":
+        autonomy.WIND_COMP = ("known", (wn, we))
+    elif args.ruzgar_telafi == "egim":
+        autonomy.WIND_COMP = ("tilt", cfg.get("wind_k_d", 0.0045))
 
     def on_drop(pkg, marker_id=None):  # sadece değerlendirme: Unreal'in gerçek konumlarıyla
         drone = client.simGetVehiclePose().position     # bırakma anındaki gerçek drone konumu
-        _, impact = wait_until_rest(client, pkg, cam)
+        if getattr(payload, "impact", None) is not None:   # gerçekçi fizik: çarpma noktası hesaptan
+            impact, drop_test.LAST_IMPACT_SPEED = payload.impact, payload.last_speed
+        else:
+            _, impact = wait_until_rest(client, pkg, cam)
         client.simDestroyObject(pkg)
         if args.mod == "dropzone":
             # teslimat noktası: levhanın (2.67 m kare) içine düştü mü, araca çarptı mı
@@ -238,6 +260,7 @@ def main():
     client.simSetWind(airsim.Vector3r(0, 0, 0))
     out.write_text(json.dumps({"backend": args.backend, "ruzgar": args.ruzgar, "model": args.model, "irtifa_m": args.irtifa,
                                "birakma_irtifa_m": drop_alt, "mod": args.mod,
+                               "paket_fizigi": args.paket_fizigi, "ruzgar_telafi": args.ruzgar_telafi,
                                "sure_s": round(total, 1), "inis_hatasi_m": round(landing_err, 2),
                                "inis_isaretci": marker, "iptal": abort_reason, "teslimatlar": results},
                               indent=2, ensure_ascii=False), encoding="utf-8")
