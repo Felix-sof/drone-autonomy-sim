@@ -76,17 +76,20 @@ def scatter_cars(client, scene, landing, rng):
 def scatter_people(client, scene, rng, avoid):
     """Kişileri açıklıklara dağıtır (araçlardan/teslimat noktalarından/iniş noktasından uzak).
 
-    avoid: kaçınılacak (x, y) noktaları. Ayakta olanlar dik, yatanlar yere paralel (roll 90°).
+    avoid: kaçınılacak (x, y) noktaları (araçlar). Ayakta olanlar dik, yatanlar yere paralel (roll 90°).
+    Kişiler açıklığın içine ve kenarına (ağaç diplerine) dağılır; birbirlerine en az 3.5 m.
     """
     clearings = scene.get("clearings", [])[1:]
+    others = []
     for name, pose in zip(scene.get("people", []), scene.get("people_pose", [])):
         for _ in range(500):
             cx, cy, cr = clearings[rng.integers(len(clearings))]
-            ang, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, max(cr - 3.0, 0.5))
+            ang, d = rng.uniform(0, 2 * math.pi), rng.uniform(0, max(cr - 1.0, 0.5))
             x, y = cx + d * math.cos(ang), cy + d * math.sin(ang)
-            if all(math.hypot(x - ax, y - ay) > 6 for ax, ay in avoid) and math.hypot(x, y) > 12:
+            if (all(math.hypot(x - ax, y - ay) > 6 for ax, ay in avoid) and
+                    all(math.hypot(x - ax, y - ay) > 3.5 for ax, ay in others) and math.hypot(x, y) > 12):
                 break
-        avoid.append((x, y))
+        others.append((x, y))
         yaw = rng.uniform(-math.pi, math.pi)
         lying = pose == "lie"
         q = euler_to_quaternion(math.pi / 2 if lying else 0.0, 0.0, yaw)
@@ -142,6 +145,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--turlar", type=int, default=10)
     ap.add_argument("--goster", action="store_true", help="Küçük kamera önizleme penceresi")
+    ap.add_argument("--biyom", default="rastgele",
+                    help="her turda dünya: rastgele | yaz_ormani | kis_ormani | seyrek_orman | col | kayalik | sabit")
     ap.add_argument("--kisi", action="store_true",
                     help="kişi odaklı turlar: kısa rota + her kişinin üstünde farklı irtifa/kaydırmayla çekim")
     args = ap.parse_args()
@@ -159,6 +164,10 @@ def main():
     try:
         for i in range(1, args.turlar + 1):
             print(f"\n=== Tur {i}/{args.turlar} ===")
+            if args.biyom != "sabit":
+                from world import randomize_world
+                randomize_world(client, scene, rng, None if args.biyom == "rastgele" else args.biyom,
+                                landing=cfg["landing"])
             placed = scatter_cars(client, scene, cfg["landing"], rng)
             scatter_people(client, scene, rng, list(placed or []))
             rec = Recorder()
@@ -167,7 +176,8 @@ def main():
             z = scene["ground_z_ned"] - rng.uniform(lo, lo + 12)
             if args.kisi:
                 found = fly_once(client, cfg, rec, None, random_route(rng, scene, n=2), z, rng,
-                                 before_landing=lambda c: people_shots(c, cfg, scene, rec, rng))
+                                 before_landing=lambda c: people_shots(
+                                     c, cfg, scene, rec, rng, per_person=1 if len(scene["people"]) > 16 else 2))
             else:
                 found = fly_once(client, cfg, rec, None, random_route(rng, scene), z, rng,
                                  before_landing=lambda c: hover_shots(c, cfg, scene, rec, rng, z))

@@ -45,6 +45,9 @@ def main():
                     help="dropzone: aracın yanındaki ArUco teslimat noktasına; roof: araç üstüne; "
                          "sar: kişi ara, güvenli mesafede yardım paketi bırak (iki sınıflı model)")
     ap.add_argument("--imgsz", type=int, default=960, help="tespit çözünürlüğü (sar için 1280 önerilir)")
+    ap.add_argument("--biyom", default="sabit",
+                    help="görev dünyası: sabit (kurulumdaki yaz ormanı) | rastgele | yaz_ormani | kis_ormani | "
+                         "seyrek_orman | col | kayalik")
     ap.add_argument("--birakma-irtifa", type=float, default=None,
                     help="hedefin üstünde bu irtifaya (m) alçalıp bırak; varsayılan dropzone 5, sar 8; "
                          "0 = seyir irtifasından serbest bırak (eski davranış)")
@@ -76,6 +79,10 @@ def main():
         vehicle = Px4Vehicle(args.px4_address)
 
     rng_scene = np.random.default_rng()
+    if args.biyom != "sabit":
+        from world import randomize_world
+        randomize_world(client, scene, rng_scene, None if args.biyom == "rastgele" else args.biyom,
+                        landing=cfg["landing"])
     placed = scatter_cars(client, scene, cfg["landing"], rng_scene)  # her görev yeni sahne
     if scene.get("people"):
         scatter_people(client, scene, rng_scene, list(placed or []))
