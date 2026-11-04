@@ -1,0 +1,30 @@
+Copyright (c) 2026 Sanberk Doruk Çankaya (GitHub: Felix-sof). All rights reserved.
+
+This repository and all of its contents (source code, documentation, configuration,
+scripts, map setup and test files) are the exclusive property of the copyright holder.
+
+No license is granted. Without the prior written permission of the copyright holder,
+you may not use, copy, modify, merge, publish, distribute, sublicense, sell, or create
+derivative works from any part of this repository, in whole or in part, for any purpose.
+
+Viewing this repository on GitHub does not grant any rights to its contents.
+
+Third-party components keep their own licenses and are not covered by this notice:
+  - Unreal Engine (Epic Games EULA), Cosys-AirSim (MIT), PX4 Autopilot (BSD-3-Clause),
+    MAVSDK (BSD-3-Clause), OpenCV (Apache-2.0), Ultralytics YOLO (AGPL-3.0 / commercial),
+    and the Unreal Marketplace / Fab assets used in the maps.
+  - Datasets used for training are NOT included in this repository and are subject to their
+    own terms: VisDrone (non-commercial research use), HERIDAL (see its source).
+
+For permission requests contact the copyright holder via GitHub: https://github.com/Felix-sof
+
+---
+
+Telif hakkı (c) 2026 Sanberk Doruk Çankaya (GitHub: Felix-sof). Tüm hakları saklıdır.
+
+Bu deponun ve tüm içeriğinin (kaynak kod, belgeler, yapılandırma, betikler, harita kurulumu ve
+testler) tüm hakları telif hakkı sahibine aittir. Hiçbir lisans verilmemiştir. Telif hakkı
+sahibinin önceden yazılı izni olmadan deponun tamamı ya da herhangi bir parçası hiçbir amaçla
+kullanılamaz, kopyalanamaz, değiştirilemez, yayımlanamaz, dağıtılamaz, satılamaz ve türev
+çalışmalarda kullanılamaz. Üçüncü taraf bileşenler ve veri setleri kendi lisanslarına tabidir
+(yukarıdaki listeye bakınız).

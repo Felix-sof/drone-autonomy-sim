@@ -172,3 +172,14 @@ python -m pytest tests -q      # 29 test: geometri, güvenlik (geofence/pil/sür
 - [x] Alçalıp bırakma (5 m): merkeze 0.05 m, çarpma hızı 22 → 10 m/s
 - [ ] Arama-kurtarma: kişiyi bul, güvenli mesafeye yardım paketi bırak
 - [ ] Sabit kanatlı versiyon
+
+## Lisans ve kullanım hakları
+
+**Telif hakkı © 2026 Sanberk Doruk Çankaya ([Felix-sof](https://github.com/Felix-sof)). Tüm hakları saklıdır.**
+
+Bu depo açık kaynak **değildir**. Kodun, belgelerin ve diğer içeriğin hiçbir parçası yazılı izin
+olmadan kullanılamaz, kopyalanamaz, değiştirilemez ya da dağıtılamaz. Ayrıntılar: [LICENSE](LICENSE).
+
+Üçüncü taraf bileşenler (Unreal Engine, Cosys-AirSim, PX4, MAVSDK, OpenCV, Ultralytics YOLO, harita
+varlıkları) ve eğitimde kullanılan veri setleri (VisDrone, HERIDAL) bu depoya dahil değildir ve kendi
+lisanslarına tabidir.
