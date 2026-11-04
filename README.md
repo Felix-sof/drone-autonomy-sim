@@ -37,6 +37,7 @@ AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştire
 | Karma model (simülasyon + VisDrone) gerçek drone görüntülerinde | mAP50 **0.86** (simülasyonda 0.82) |
 | **İki sınıflı model** (araba + kişi, 1280 px, `carperson`), gerçek (VisDrone val) | araba **0.89**, kişi **0.59** (recall 0.52) |
 | Aynı model, simülasyon val (hiç görülmemiş turlar) | araba 0.84, kişi **0.34** (recall 0.33) — simülasyonda kişi verisi az (830 görüntü / 1397 kutu, VisDrone'da 106k) |
+| **Yeni model** (`carperson3`: + 5 biyom, 32 kişi, HERIDAL gerçek SAR verisi) | kişi: simülasyon **0.19 → 0.56**, HERIDAL **0.26 → 0.68**, VisDrone 0.59 → 0.62; araba ~0.89 (kayıp yok) |
 
 İsabet = paketin **ilk temas** noktası hedef arabanın üstten görünen ayak izinde mi
 (başka araba / ağaç / yer ayrı sayılır). Kavisli tavandan sekme ayrıca ölçülür.

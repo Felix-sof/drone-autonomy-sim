@@ -33,7 +33,7 @@ Kararlar kronolojik sırada. Yeni karar verildikçe sona eklenir; geçersiz olan
 | K-13 | Varsayılan bırakma: seyir irtifasından (25 m) | En zor koşulda doğrulama |
 | K-14 | Bırakmadan önce ince hizalama | 25 m'de hata 0.50 → 0.048 m |
 | K-15 | Çok katmanlı güvenlik | Tek bir hata kazaya dönüşmesin |
-| K-16 | Biyom rastgeleleştirme + 32 kişi | Kişi tespiti simülasyonda 0.34'te kaldı |
+| K-16 | Biyom rastgeleleştirme + 32 kişi | Kişi tespiti simülasyonda 0.19 → 0.56 |
 | K-17 | HERIDAL gerçek SAR verisi, 2×2 parçalı | Ölçek drone'umuzla eşleşsin |
 | K-18 | Rüzgar ve hava direnci modeli | Gerçekte 25 m'de metrelerce kayma |
 | K-19 | Simülatörsüz kapalı döngü testler | Mantık hataları dakikalar değil saniyeler içinde |
@@ -271,7 +271,21 @@ VisDrone'da 106 bin kişi vardı ama görünüşleri farklı.
 - 32 kişi: ayakta, yürüyen, koşan (animasyonun rastgele bir anında dondurulmuş) ve yatan;
   12 kıyafet rengi, %20'si beyaz manken.
 
-**Kanıt:** Simülasyon kişi etiketi 1397 → **9641**. Eğitim sonucu bekleniyor.
+**Kanıt:** Simülasyon kişi etiketi 1397 → **9641**. Yeni model (`carperson3`: simülasyon 5 biyom +
+VisDrone + HERIDAL, 1280 px, 12 epoch) eski modelle aynı doğrulama setlerinde (mAP50):
+
+| Veri seti | Sınıf | Eski | Yeni |
+|---|---|---|---|
+| Simülasyon (görülmemiş turlar) | kişi | 0.192 | **0.561** (recall 0.21 → 0.62) |
+| HERIDAL (gerçek SAR) | kişi | 0.256 | **0.683** |
+| VisDrone (gerçek) | kişi | 0.594 | **0.617** |
+| VisDrone (gerçek) | araba | 0.892 | 0.894 |
+| Simülasyon | araba | 0.870 | 0.879 |
+
+Kişi tespiti ~3 kat iyileşti, araba tespitinde kayıp yok.
+
+**Eğitim tuzağı:** 1280 px'de batch 4, 8 GB ekran kartını aşıp paylaşılan belleğe taşınıyor ve eğitim
+~25 kat yavaşlıyor (kart %100 görünür ama ~28 W çeker). Batch 3 ile ~5.5 GB'ta kalıyor.
 
 **Bedel/tuzak:** AirSim'in `simSetObjectMaterial`'ı iskeletli modelde `True` döndürüp hiçbir şey
 yapmıyor. Kıyafet rengi bu yüzden harita kurulumunda kalıcı veriliyor.
@@ -346,7 +360,6 @@ akışı sessizce değiştirdi.
 
 ## Açık konular
 
-- Kişi tespitinin yeni veriyle ölçülmesi (VisDrone, HERIDAL ve simülasyonda ayrı ayrı).
 - Rüzgar telafisinin simülasyonda doğrulanması; 50 m ve 75 m bırakma.
 - 75 m'de 2 m'lik işaretçi ~25 px: daha büyük işaretçi ya da iki aşamalı hizalama.
 - 50-75 m'de kişi tespiti için görüntüyü parçalayarak tarama (tiling).
