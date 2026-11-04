@@ -1,0 +1,73 @@
+{
+  "backend": "airsim",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "sure_s": 176.9,
+  "birakma_irtifa_m": null,
+  "teslim": "birak",
+  "biyom": "seyrek_orman",
+  "paketler": [
+    {
+      "no": 1,
+      "kisi_tahmini": [
+        -39.29,
+        -32.82
+      ],
+      "birakma": [
+        -32.18,
+        -32.8
+      ],
+      "aciklik": 1.0,
+      "zaman_s": 44.5,
+      "birakma_irtifa_m": 25.45,
+      "isabet": true,
+      "tehlikeli": false,
+      "carpma_hizi_ms": 18.3,
+      "kisiye_m": 6.01,
+      "zemin": "yer",
+      "araba": "StaticMeshActor_2290",
+      "sonuc_metni": "GÜVENLİ TESLİMAT ✔ (en yakın kişiye 6.0 m)"
+    },
+    {
+      "no": 2,
+      "kisi_tahmini": [
+        -43.05,
+        -21.86
+      ],
+      "birakma": [
+        -36.78,
+        -19.28
+      ],
+      "aciklik": 1.0,
+      "zaman_s": 75.3,
+      "birakma_irtifa_m": 25.51,
+      "isabet": true,
+      "tehlikeli": false,
+      "carpma_hizi_ms": 21.8,
+      "kisiye_m": 6.12,
+      "zemin": "yer",
+      "araba": "StaticMeshActor_2290",
+      "sonuc_metni": "GÜVENLİ TESLİMAT ✔ (en yakın kişiye 6.1 m)"
+    },
+    {
+      "no": 3,
+      "kisi_tahmini": [
+        -33.29,
+        0.06
+      ],
+      "birakma": [
+        -35.84,
+        -6.11
+      ],
+      "aciklik": 1.0,
+      "zaman_s": 109.4,
+      "birakma_irtifa_m": 25.47,
+      "isabet": true,
+      "tehlikeli": false,
+      "carpma_hizi_ms": 22.4,
+      "kisiye_m": 5.38,
+      "zemin": "yer",
+      "araba": "StaticMeshActor_2297",
+      "sonuc_metni": "GÜVENLİ TESLİMAT ✔ (en yakın kişiye 5.4 m)"
+    }
+  ]
+}

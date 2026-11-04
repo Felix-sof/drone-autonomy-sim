@@ -284,6 +284,10 @@ VisDrone + HERIDAL, 1280 px, 12 epoch) eski modelle aynı doğrulama setlerinde 
 
 Kişi tespiti ~3 kat iyileşti, araba tespitinde kayıp yok.
 
+**Görevde (2026-11-04, AirSim, 3 biyom, 3 görev × 3 paket):** 9/9 güvenli teslimat, 0 tehlikeli bırakma;
+paketler kişiye 5.4–6.6 m (hedef 6.5 m). Eski model aynı görevde kimseyi bulamıyordu. Pay dar: bırakma
+noktasına konuma göre gidiliyor, kişiye göre görüntüyle son düzeltme yok (±1 m) → yol haritasına eklendi.
+
 **Eğitim tuzağı:** 1280 px'de batch 4, 8 GB ekran kartını aşıp paylaşılan belleğe taşınıyor ve eğitim
 ~25 kat yavaşlıyor (kart %100 görünür ama ~28 W çeker). Batch 3 ile ~5.5 GB'ta kalıyor.
 
@@ -360,6 +364,10 @@ akışı sessizce değiştirdi.
 
 ## Açık konular
 
+- PX4 SITL bağlantısı 2026-11-04'te güvenilmez hâle geldi (Windows/WSL güncellemesi sonrası; netstat AirSim
+  portlarını göstermiyor, MAVLink UDP verisi gelmiyor). Görevler şimdilik `--backend airsim` ile; `wsl --shutdown`/yeniden
+  başlatma sonrası PX4 tekrar denenecek.
+
 - Rüzgar telafisinin simülasyonda doğrulanması; 50 m ve 75 m bırakma.
 - 75 m'de 2 m'lik işaretçi ~25 px: daha büyük işaretçi ya da iki aşamalı hizalama.
 - 50-75 m'de kişi tespiti için görüntüyü parçalayarak tarama (tiling).
@@ -377,6 +385,8 @@ akışı sessizce değiştirdi.
 4. **Hedef filtresi:** görevde `--hedef araba | insan | ikisi`.
 5. **Haritadan görev seçme:** haritanın üstten görüntüsü üzerinde arama alanı, nokta ve teslimat
    noktası çizen bir arayüz → görev dosyası → drone bu dosyayla uçar (gerçek drone'da da aynı dosya).
+5b. **SAR bırakma noktasında ince hizalama:** kişiye göre görüntüyle son düzeltme (şu an ±1 m; 5 m sınırına
+   pay ~0.4 m).
 6. **İnsanlara yardım ulaştırma:** araçlarda başarı oturduktan sonra ana hedef kişiler. Paket kişiye
    nişanlanmaz: en az 5 m uzağa açık zemine, sonra ipli teslimatla kol mesafesine (K-12).
 7. **Sabit kanat:** havada duramaz; hedef üstünde dönerek uçar, paraşütlü bırakma, işaretli teslimat

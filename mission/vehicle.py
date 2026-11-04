@@ -211,11 +211,17 @@ class Px4Vehicle(Vehicle):
 
     async def _ensure_offboard(self):
         from mavsdk.offboard import OffboardError, VelocityNedYaw
-        try:
-            await self.drone.offboard.set_velocity_ned(VelocityNedYaw(0, 0, 0, 0))
-            await self.drone.offboard.start()
-        except OffboardError:
-            pass  # zaten offboard
+        for attempt in range(5):
+            try:
+                await self.drone.offboard.set_velocity_ned(VelocityNedYaw(0, 0, 0, 0))
+                await asyncio.wait_for(self.drone.offboard.start(), 10)
+                return
+            except OffboardError as ex:
+                print(f"  offboard başlatılamadı ({ex._result.result_str}), tekrar deneniyor", flush=True)
+            except asyncio.TimeoutError:
+                print("  offboard başlatma cevapsız kaldı (10 s), tekrar deneniyor", flush=True)
+            await asyncio.sleep(1)
+        raise RuntimeError("PX4 offboard moduna geçmedi")
 
     def _cancel_goto(self):
         if self._goto_task is not None and not self._goto_task.done():
@@ -256,8 +262,13 @@ class Px4Vehicle(Vehicle):
                         print(f"  arm reddedildi ({ex}), tekrar deneniyor...", flush=True)
                     await asyncio.sleep(3)
             await self.drone.action.takeoff()
-            while -self._pos[2] < min(alt_m, 10.0) * 0.9:
+            # PX4'ün kalkış irtifasına tam ulaşmasını bekleme: yükseklik tahmini simülasyondan 1-2 m sapabiliyor
+            # ve 10 m'lik kalkış ~7.5 m'de "bitmiş" sayılıyor (2026-11-04). Havada ve 2 m üstünde ise devam:
+            # asıl irtifaya hemen ardından gelen goto çıkarır.
+            t0 = time.time()
+            while not (self._in_air and -self._pos[2] > 2.0) and time.time() - t0 < 30:
                 await asyncio.sleep(0.2)
+            await asyncio.sleep(2.0)
         self._run(go(), timeout=200)
         n, e, _ = self._pos
         self.goto(n, e, -alt_m, 3.0)
