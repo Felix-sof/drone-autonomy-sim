@@ -15,7 +15,12 @@ mode=${1:-px4}
 setup=${2:-}
 
 editor_up() { tasklist | grep -qi "UnrealEditor.exe"; }
-port_up() { netstat -ano | grep -q ":$1 .*LISTEN"; }
+# netstat (WSL mirrored ağ modunda) AirSim'in dinlediği portu artık göstermiyor; PowerShell görüyor.
+# Port gerçekten kabul ediyor mu diye bağlanmayı denemek en güvenlisi.
+port_up() { powershell -NoProfile -Command "\$c = New-Object Net.Sockets.TcpClient; try { \$c.Connect('127.0.0.1', $1); exit 0 } catch { exit 1 } finally { \$c.Close() }" >/dev/null 2>&1; }
+# 4560'a deneme bağlantısı AÇMA: AirSim tek bağlantı kabul eder, deneme onu PX4 sanar. Kayda bak:
+# son Play'den sonra "Waiting for TCP connection on port 4560" yazdıysa AirSim PX4'ü bekliyor.
+airsim_waits_px4() { sed -n '/auto_editor: Play/,$p' /c/UE/Sa/Saved/Logs/Sa.log 2>/dev/null | grep -q "Waiting for TCP connection on port 4560"; }
 px4_stop() { wsl.exe -d Ubuntu -u sanberk -- bash -lc 'pkill -f "bin/px4" 2>/dev/null; true'; }
 editor_stop() {
   editor_up || return 0
@@ -45,8 +50,8 @@ case "$mode" in
     [ "$setup" = setup ] && touch "$FLAGS/setup"
     editor_start
     if [ "$mode" = px4 ]; then
-      for _ in $(seq 1 300); do port_up 4560 && break; sleep 2; done   # AirSim PX4'ü bekliyor
-      port_up 4560 || { echo "AirSim 4560'ta beklemiyor"; exit 1; }
+      for _ in $(seq 1 300); do airsim_waits_px4 && break; sleep 2; done   # AirSim PX4'ü bekliyor
+      airsim_waits_px4 || { echo "AirSim 4560'ta beklemiyor"; exit 1; }
       px4_start
       for _ in $(seq 1 60); do
         wsl.exe -d Ubuntu -u sanberk -- bash -lc 'grep -q "Ready for takeoff" /tmp/px4.log' && { echo "PX4 hazır (MAVSDK: udp://:14550)"; break; }
