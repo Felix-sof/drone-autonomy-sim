@@ -1,192 +1,129 @@
-# Otonom Drone Simülasyonu: Tespit + Paket Bırakma
+# Drone Autonomy Sim: Detection, Precision Drop and Search-and-Rescue
 
-Unreal Engine 5.8 + [Cosys-AirSim](https://github.com/Cosys-Lab/Cosys-AirSim) + **PX4** üzerinde döner kanatlı
-bir drone: alanı kendisi tarar, alt kamerasıyla arabaları tespit eder, hedefin üstüne hizalanıp
-kargo paketi bırakır ve **ArUco işaretçili helipad'e sadece kamerayla** iner.
+**English** · [Türkçe](README.tr.md)
 
-**Demo:** [docs/videos/arac_ustu.mp4](docs/videos/arac_ustu.mp4) (~33 s, 2× hız). Solda takip kamerası, sağda
-drone'un alt kamerası. Drone arabayı bulur (kırmızı kutu), tavanının üstüne hizalanır, paketi **25 m'den** bırakır;
-ilk temas arabanın tavanında, merkeze 10 cm. Ardından helipad'e işaretçiyle iner. (AirSim uçuş kontrolcüsü.)
+A rotary-wing drone in Unreal Engine 5.8 + [Cosys-AirSim](https://github.com/Cosys-Lab/Cosys-AirSim) + **PX4**
+that searches an area on its own, detects cars and people with its downward camera, aligns over the target,
+drops a package and lands on an **ArUco helipad using vision only**.
 
-Görev kodu simülatörden bağımsız yazıldı (araç / kamera / paket arayüzleri): aynı `autonomy.py`
-AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştirerek — gerçek drone'da
-çalışır. Gerçek drone'a geçiş: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md). Kararlar ve nedenleri: [docs/TEKNIK_KARARLAR.md](docs/TEKNIK_KARARLAR.md).
+![Demo](docs/videos/demo.gif)
+
+**Demo:** left, chase camera; right, the drone's downward camera. The drone locks onto a car (red box), aligns
+over its roof and releases the package from **25 m**; first contact is on the roof, 10 cm from its centre.
+Full mission with landing: [docs/videos/arac_ustu.mp4](docs/videos/arac_ustu.mp4) (~33 s, 2× speed,
+AirSim flight controller).
+
+The mission code is simulator-agnostic (vehicle / camera / payload interfaces): the same `autonomy.py` runs on
+AirSim's flight controller, on PX4 SITL and, with the real back ends swapped in, on a physical PX4 drone.
+Real-drone guide: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md) · design decisions with evidence:
+[docs/TEKNIK_KARARLAR.md](docs/TEKNIK_KARARLAR.md) (both in Turkish).
 
 ```
-            ┌──────────────── autonomy.py (ara/tespit/hizala/bırak/in, güvenlik) ───────────────┐
- vehicle.py │ AirSimVehicle (SimpleFlight)  │  Px4Vehicle ── MAVSDK/MAVLink ──> PX4 (SITL / Pixhawk) │
- kamera     │ AirSim simGetImages           │  camera.OpenCVCamera (USB / CSI / RTSP)               │
- paket      │ payload.SimPayload (fizik)    │  payload.GripperPayload (PX4 gripper)                 │
-            └────────────────────────────────────────────────────────────────────────────────────┘
+            ┌───────────── autonomy.py (search / detect / align / drop / land, safety) ─────────────┐
+ vehicle.py │ AirSimVehicle (SimpleFlight)   │  Px4Vehicle ── MAVSDK/MAVLink ──> PX4 (SITL / Pixhawk) │
+ camera     │ AirSim simGetImages            │  camera.OpenCVCamera (USB / CSI / RTSP)               │
+ payload    │ payload.SimPayload (physics)   │  payload.GripperPayload (PX4 gripper)                 │
+            └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Sonuçlar (şimdiye kadar)
+## Highlights
 
-| Deney | Sonuç |
+| What | Result |
 |---|---|
-| **Rotasız tam otonom görev** (ara → YOLO ile bul → hizalan → bırak → in), 3 görev × 3 paket | **9/9 isabet, 9 farklı araba, 0 yanlış alarm**, görev başına ~6 dk |
-| Paket bırakma, **hedefi YOLO buluyor**, 25 m, 20 deneme | **14/20 hedef araba**, 2 yan araba, 0 ağaç/yer, 4 göremedi; deneme başına 56 s |
-| Paket bırakma, kusursuz (Unreal) tespit, **10 m**, 10 deneme | **10/10**, ilk temas merkeze ort. 3 cm, 64 s/deneme |
-| Paket bırakma, kusursuz (Unreal) tespit, **25 m**, 10 deneme | **10/10**, ilk temas merkeze ort. 3 cm, **49 s/deneme** (%23 daha hızlı) |
-| YOLO11s araba tespiti, orman, 2237 görüntü / 50 tur | **mAP50 0.84**, precision 0.88, recall 0.75 — doğrulama **hiç görülmemiş 8 turda** |
-| **Görüntüyle hassas iniş** (ArUco, eğim telafili, simülatör bilgisi yok), 25 m, 2-6 m kaydırarak | iniş hatası **0-1 cm** |
-| Aynı modelin **gerçek** drone görüntülerinde (VisDrone val, 548 görüntü, 16k araç) başarısı | mAP50 **0.02** — sadece simülasyonla eğitilen model gerçekte çalışmıyor → karma eğitim |
-| **PX4 SITL ile tam otonom görev** (MAVLink/MAVSDK, gimbal'lı kamera, karma model), 4 görev × 3 paket | **12/12 isabet, 12 farklı araba, 0 yanlış alarm**; ArUco iniş hatası ort. **7 cm**; görev ~2.5 dk |
-| **Teslimat noktası modu** (PX4): araba bul → yanındaki numaralı ArUco noktasına bırak, 4 görev | **12/12 paket işaretçinin içinde** (merkeze ort. ~0.45 m), araca çarpan 0 |
-| **Alçalıp bırakma** (PX4, teslimat noktası): işaretçiye ortalı 25 → 5 m dikey alçal, bırak, geri çık; 3 görev × 3 paket | **9/9**, işaretçi merkezine ort. **0.05 m**, çarpma hızı ~**9.8 m/s**; görev ~232 s |
-| Aynı görev, 25 m'den serbest bırakma (karşılaştırma) | 9/9, merkeze ort. 0.50 m, çarpma hızı ~**22 m/s**; görev ~171 s |
-| **25 m'den bırakma + ince hizalama** (bırakmadan önce 8 kare ortalaması, 12 cm tolerans), 3 görev × 3 paket | **9/9**, işaretçi merkezine ort. **0.048 m** (en kötü 0.08 m); görev ~198 s. Önceki 0.50 m'nin tamamı drone konumundan (30 cm tolerans, tam durmadan bırakma): düşüş kayması ~0, sabit sapma yok |
-| Negatif test: araçların %40'ının teslimat işaretçisi kaldırıldı | işaretçisiz araca teslimat **0** (drone bırakmadan aramaya devam etti) |
-| PX4 tam görev **rüzgarda** (5 m/s ×2, 8 m/s ×1) | **9/9 isabet**, ArUco iniş 3-10 cm — *not: AirSim rüzgarı drone'u etkiliyor, düşen paketi etkilemiyor; gerçekte paket sürüklenir* |
-| Karma model (simülasyon + VisDrone) gerçek drone görüntülerinde | mAP50 **0.86** (simülasyonda 0.82) |
-| **İki sınıflı model** (araba + kişi, 1280 px, `carperson`), gerçek (VisDrone val) | araba **0.89**, kişi **0.59** (recall 0.52) |
-| Aynı model, simülasyon val (hiç görülmemiş turlar) | araba 0.84, kişi **0.34** (recall 0.33) — simülasyonda kişi verisi az (830 görüntü / 1397 kutu, VisDrone'da 106k) |
-| **Yeni model** (`carperson3`: + 5 biyom, 32 kişi, HERIDAL gerçek SAR verisi) | kişi: simülasyon **0.19 → 0.56**, HERIDAL **0.26 → 0.68**, VisDrone 0.59 → 0.62; araba ~0.89 (kayıp yok) |
-| **Arama-kurtarma görevi** (yeni model, AirSim, 3 biyom: seyrek orman / kış / yaz), 3 görev × 3 paket | **9/9 güvenli teslimat, 0 tehlikeli**; kişiye 5.4–6.6 m (hedef 6.5 m, sınır 5 m), hepsi açık zemine; görev ~3 dk; ArUco iniş 2 cm. Eski model aynı görevde hiç kişi bulamıyordu |
+| **Drop onto the car roof from 25 m** (default mode, fine alignment) | first contact on the target roof, **10–12 cm** from its centre |
+| Drop onto a marked drop zone next to the car from 25 m, 3 missions × 3 packages | **9/9**, mean **4.8 cm** from the marker centre (was 0.50 m before fine alignment) |
+| Fully autonomous mission on **PX4 SITL** (MAVSDK, gimbal camera), 4 missions × 3 packages | **12/12** hits, 12 different cars, 0 false alarms; also **9/9 in 5–8 m/s wind** |
+| **Vision-only precision landing** (ArUco, tilt-compensated) | **0–1 cm** (AirSim), ~7 cm (PX4) |
+| **Search-and-rescue** in 3 biomes, 3 missions × 3 aid packages | **9/9 safe deliveries, 0 dangerous**, 5.4–6.6 m from the person (limit ≥ 5 m) |
+| Car detector trained **only on simulation**, tested on real drone images (VisDrone) | mAP50 **0.02**: sim-only does not transfer |
+| Same detector trained on **sim + real data** | cars mAP50 **0.89** on real images, 0.88 in sim |
+| Person detection after adding 5 biomes, 32 posed people and real SAR data (HERIDAL) | sim **0.19 → 0.56**, HERIDAL **0.26 → 0.68**, VisDrone 0.59 → 0.62 |
+| Negative test: 40 % of drop-zone markers removed | **0** deliveries to unmarked cars |
+| Simulator-free tests (fake vehicle, closed loop) | **43** tests, ~1.5 s |
 
-İsabet = paketin **ilk temas** noktası hedef arabanın üstten görünen ayak izinde mi
-(başka araba / ağaç / yer ayrı sayılır). Kavisli tavandan sekme ayrıca ölçülür.
+"Hit" means the package's **first contact** point is on the target car's top-down footprint (another car, a tree
+or the ground are counted separately). Full results table: [README.tr.md](README.tr.md#sonuçlar-şimdiye-kadar).
 
-*Ölçüm notu (2026-10-17):* Unreal nesne konumunu ~45 Hz günceller; daha sık okununca aynı konum
-tekrar geliyor ve eski kod bunu "hız sıfır = çarptı" sanıp ilk teması bazen düşüşün ortasında
-işaretliyordu. Düşüş dikey olduğu için yatay sonuçlar (merkeze uzaklık, işaretçi içinde mi)
-pek etkilenmez, ama bu tarihten önceki **tavan modu "ağaç/yer" ayrımı yaklaşıktır**. Düzeltildi
-(`tests/test_impact.py`); çarpma hızı da artık ölçülüyor.
+## Lessons learned
+- **A per-frame train/val split lies.** Consecutive frames are nearly identical; the first forest model scored
+  0.81 on validation yet missed the car right below it in live flight. Splitting by flight session (and keeping
+  the split stable as data grows) made the metric honest.
+- **Alignment must track.** Picking "the box nearest the image centre" jumped to a neighbouring car when the
+  target vanished for one frame (three packages ended up on one car). Tracking the previous box with a jump
+  limit and a few frames of miss tolerance fixed it.
+- **Compensate camera tilt, or better, use a gimbal.** A drone drifting at 2 m/s tilts ~10°, a 4–5 m error at
+  25 m. On PX4 the attitude and the camera frame arrive at different times; a stabilized gimbal camera
+  (pitch −89.9°: exactly −90° causes gimbal lock) cut the error to ±0.2 m and PX4 missions went to 12/12.
+- **Simulation ≠ reality.** 0.84 in sim, 0.02 on real images. Mixing in real aerial data (VisDrone, HERIDAL)
+  fixed transfer without losing sim accuracy.
+- **Decompose the error before fixing it.** The 25 m drop error looked like a constant ~0.55 m bias. Logging the
+  drone's offset and the fall drift separately showed it was all alignment (30 cm tolerance, releasing before
+  fully stopped); an 8-frame average with a 12 cm tolerance brought it to 4.8 cm.
+- **Test the measurement code too.** Unreal updates object poses at ~45 Hz; polling faster returned repeated
+  poses that the impact detector read as "velocity zero = impact" mid-fall. Impact speed from a single interval
+  was also ~30 % too high. Both are now unit-tested.
 
-### Öğrenilenler
-- **Kare bazında train/val bölmek yalan söyler:** art arda kareler neredeyse aynı; ilk orman
-  modeli val'de 0.81 gösterip canlı sahnede ortadaki arabayı göremedi. Tur bazında bölününce
-  gerçek başarı ölçülebildi; daha çok sahne + bırakma açısından (drone durgun, araba merkezde)
-  çekimlerle yeniden eğitilen model canlıda çalıştı.
-- **Hizalama takip etmeli:** "görüntü merkezine en yakın kutu" seçimi, hedef bir kare kaybolunca
-  yandaki arabaya kayıyor (bir görevde 3 paket aynı arabaya gitti). Önceki karedeki konuma en
-  yakın kutuyu seçip sıçramayı sınırlamak + birkaç kare kayıp toleransı bunu çözdü.
-- **Kamera eğimi telafi edilmeli:** 2 m/s kayan drone ~10° eğilir; 25 m'de bu 4-5 m sahte sapma.
-  Telafisiz ArUco inişinde drone işaretçinin etrafında salınıp uzaklaştı; ışını roll/pitch ile
-  yataya döndürüp NED hız komutu vermek 0-1 cm iniş verdi.
-- **Simülasyon ≠ gerçek:** simülasyonda 0.84 olan model gerçek görüntüde 0.02. Gerçek veri şart:
-  VisDrone ile karma eğitim gerçekte 0.86'ya çıkardı, simülasyondaki başarıyı koruyarak.
-- **Gövdeye sabit kamera + MAVLink telemetrisi = senkron sorunu:** PX4'te yönelim ile kamera karesi
-  farklı anlarda geliyor; eğim telafisi 25 m'de ±5 m sahte hata üretti, drone salındı. Gimbal'lı
-  kamera (pitch -89.9° — tam -90° gimbal kilidi yapıyor —, yaw kuzeye kilitli) ölçümü ±0.2 m'ye
-  indirdi ve PX4 görevleri 12/12 oldu.
-- **Kalan darboğaz tespit:** bırakılan her paket bir arabaya isabet ediyor; kayıplar modelin
-  bazı arabaları hiç görmemesinden (recall 0.75). Sonraki adım daha çok/çeşitli veri.
+## Scope and safety
+- Default mission: find a car, hover and release onto its **roof** from 25 m (`--mod roof`). Delivery to a
+  marked drop zone next to the car is `--mod dropzone`.
+- Search-and-rescue: aid packages are dropped **at least 5 m from people** on open ground, the zone is
+  re-checked right before release, and in real-world mode **every release needs pilot approval** (silence = no).
+- Release-point calculation for drops from a **moving** drone (ballistic aiming) is deliberately not built,
+  and payloads are never aimed at people.
+- Geofence, battery and mission-time aborts; PX4's own geofence/RTL on top.
 
-- **Gerçek teslimat drone'ları alçalıp bırakır:** Amazon MK30 ~4 m, Wing ~7 m'de durup iple
-  indirir, Skydio kurtarma şamandırası için ~7.5 m önerir. 25 m'den serbest düşen paket ~22 m/s
-  ile çarpıyor; 5 m'ye alçalmak bunu ~10 m/s'ye indirdi ve isabeti 10 kat iyileştirdi (0.50 → 0.05 m),
-  çünkü 25 m'de 1 piksellik hizalama hatası yerde 5 kat büyük. Bedeli paket başına ~20 s.
-
-### Proje yönü: teslimat ve arama-kurtarma
-Paket artık aracın tavanına değil, aracın yanındaki **işaretli teslimat noktasına** bırakılıyor
-(ticari teslimat drone'ları gibi); işaretçi yoksa bırakılmıyor. Sıradaki aşama **arama-kurtarma**:
-kişiyi bul, yardım paketini **kişiden en az 5 m uzakta** açık bir zemine bırak (`mission/sar.py`).
-Hareket halindeki bir drone'dan hedefe isabet ettirmek için bırakma anı hesaplayan (balistik nişan)
-bir özellik bilinçli olarak geliştirilmiyor.
-
-## Klasörler
+## Layout
 
 ```
-airsim/settings.json            AirSim ayarları -> Belgeler\AirSim\settings.json
-unreal/setup_level.py           Editörde çalışır: zemin, rastgele arabalar, helipad, paket modeli
-unreal/setup_level_launcher.py  Türkçe karaktersiz yoldan çağırmak için (C:\UE\setup_level.py)
-unreal/config/                  Unreal projesinin ayar dosyalarının kopyası (C:\UE\Sa\Config)
-mission/autonomy.py             TAŞINABİLİR görev çekirdeği (ara, tespit, hizala, bırak, in, güvenlik)
-mission/sar.py                  Arama-kurtarma: kişi ara, güvenli (>=5 m) açık noktaya yardım paketi
-mission/vehicle.py              Araç arayüzü: AirSimVehicle, Px4Vehicle (MAVSDK)
-mission/perception.py           YOLO tespiti + eğim telafili piksel->yer geometrisi
-mission/aruco_land.py           ArUco işaretçisiyle görüntüyle hassas iniş
-mission/payload.py, camera.py   Paket bırakıcı (sim/gripper), gerçek kamera (OpenCV)
-mission/run_autonomy.py         Görevi simülasyonda çalıştır (--backend airsim|px4)
-mission/run_real.py             Gerçek drone: bench / connect / mission (onaylı)
-mission/sim.sh                  Simülasyonu tek komutla başlat/durdur (px4|airsim|stop)
-airsim/settings_px4.json        AirSim'i PX4 SITL'e bağlayan ayarlar (TCP 4560, lockstep)
-training/visdrone_to_yolo.py    Gerçek drone veri seti (VisDrone) -> YOLO; evaluate.py ölçüm
-docs/GERCEK_DRONE.md            Donanım, PX4 ayarları, test merdiveni, güvenlik
-docs/TEKNIK_KARARLAR.md         Teknik kararlar: sorun, seçenekler, neden, kanıt, bedel
-mission/sim_client.py           Ortak yardımcılar: bağlantı, kamera, tespit, yumuşak iniş
-mission/fly_mission.py          Waypoint görevi + veri kaydı + helipad'e hassas iniş
-mission/collect_data.py         Çok turlu otomatik veri toplama (her turda rastgele sahne)
-mission/drop_test.py            Paket bırakma ve isabet ölçümü
-mission/camera_check.py         Kamera sağlık testi (siyah/donmuş görüntü)
-mission/diag_centering.py       Hizalama teşhisi
-training/prepare_dataset.py     dataset/raw -> C:\UE\drone_data\yolo (train/val)
-training/train.py               YOLO eğitimi
-results/                        Deney sonuçları (CSV)
+mission/autonomy.py           Portable mission core (search, detect, align, drop, land, safety)
+mission/sar.py                Search-and-rescue: find a person, drop aid at a safe open spot
+mission/vehicle.py            Vehicle interface: AirSimVehicle, Px4Vehicle (MAVSDK)
+mission/perception.py         YOLO detection + tilt-compensated pixel-to-ground geometry
+mission/aruco_land.py         Vision-only precision landing on an ArUco marker
+mission/ballistics.py         Fall with drag + wind, release offset, wind from tilt (opt-in)
+mission/world.py              Per-round biome randomization (5 biomes, random clearings)
+mission/payload.py, camera.py Payload release (sim / gripper / winch), real camera (OpenCV)
+mission/run_autonomy.py       Run a mission in simulation (--backend airsim|px4)
+mission/run_real.py           Real drone: bench / connect / mission (with explicit approvals)
+mission/record_video.py       Two-camera demo video recorder
+mission/sim.sh                Start/stop the simulation with one command (px4|airsim|stop)
+unreal/setup_forest.py        Builds the map in the editor: forest, cars, people, helipad, biome pools
+training/                     Dataset prep, VisDrone/HERIDAL conversion, training, evaluation
+tests/                        Simulator-free tests
+docs/                         Real-drone guide, technical decisions log, demo video
 ```
 
-## Çalıştırma
-
-1. Unreal'de `C:\UE\Sa\Sa.uproject`'i aç (masaüstündeki "Drone Sim").
-2. Orman haritasını (yeniden) kurmak için Output Log'a: `py "C:/UE/setup_forest.py"`
-   (eski düz harita: `setup_level.py`)
-3. **▶ Play**, sonra:
+## Running
 
 ```
-python mission/collect_data.py --turlar 10 --goster     # veri topla
-python training/prepare_dataset.py                       # veri setini hazırla
-python training/train.py --model yolo11s.pt --epochs 60 --name car_forest2   # eğit (Unreal kapalıyken)
-python mission/drop_test.py --deneme 10 --irtifa 25      # paket bırakma (kusursuz tespit)
-python mission/drop_test.py --model C:/UE/drone_runs/car_forest2/weights/best.pt --irtifa 25   # hedefi YOLO bulsun
-python mission/autonomous_mission.py --model C:/UE/drone_runs/car_forest2/weights/best.pt --teslimat 3 --goster
-
-# taşınabilir görev çekirdeği (bash mission/sim.sh px4 ile simülatör + PX4 açıkken)
-python mission/run_autonomy.py --model C:/UE/drone_runs/car_mixed2/weights/best.pt --backend px4 --teslimat 3
-#   --birakma-irtifa 5   isteğe bağlı: hedefin üstünde 5 m'ye alçalıp bırak (varsayılan: seyir irtifasından)
-#   --mod roof (varsayılan) aracın tavanına | --mod dropzone yanındaki teslimat noktasına
-#   --mod sar --imgsz 1280   arama-kurtarma (iki sınıflı model)
-#   --ruzgar 6,3   --isaretcisiz 0.4   rüzgar / negatif test
+bash mission/sim.sh airsim          # or: px4 (Unreal + PX4 SITL in WSL)
+python mission/run_autonomy.py --model <best.pt> --backend airsim --teslimat 3
+#   --mod roof (default) | dropzone | sar        --imgsz 1280 for SAR
+#   --biyom rastgele                              random biome per mission
+#   --ruzgar 6,3   --paket-fizigi gercekci   --ruzgar-telafi egim     wind, drag, wind compensation
+python -m pytest tests -q
 ```
 
-İnsansız (gece) çalıştırma: `bash mission/overnight.sh 30 20 car_forest2 60` — Unreal'i
-`C:/UE/flags` bayraklarıyla kendisi açar, Play'e basar, veri toplar, kapatır, eğitir, yeniden
-açıp testleri yapar. `C:/UE/flags/auto` dosyası varken `Content/Python/init_unreal.py`
-editör açılışında `unreal/auto_editor.py`'yi devreye sokar; iş bitince bu dosya silinir.
-Diğer bayraklar: `setup` = haritayı yeniden kur, `play` = Play'i başlat, `quit` = editörü kapat.
+CLI flags and log messages are in Turkish (`teslimat` = deliveries, `irtifa` = altitude, `ruzgar` = wind).
 
-## Testler (simülatörsüz)
+## Roadmap
+- [x] Autonomous search, YOLO detection, tracking alignment, vision-only landing
+- [x] PX4 SITL, wind robustness, drop-zone mode, negative test
+- [x] Sim-to-real detector (sim + VisDrone + HERIDAL), 5 biomes, 32 posed people
+- [x] Search-and-rescue with a ≥ 5 m safety distance (9/9 safe, 0 dangerous)
+- [x] Roof drop with fine alignment (25 m: ~10 cm from the roof centre)
+- [ ] Wind compensation validated in simulation (code and offline tests done)
+- [ ] Drops from 50 m and 75 m
+- [ ] Target filter (cars / people / both) and map-based mission planning UI
+- [ ] Fixed-wing version
 
-```
-python -m pytest tests -q      # 29 test: geometri, güvenlik (geofence/pil/süre), kapalı döngü hizalama,
-                               # başka arabaya sıçramama, SAR güvenli mesafe, alçalıp bırakma
-                               # (altta kişi varsa vazgeçme), çarpma ölçümü — sahte drone ile
-```
+## License and usage rights
 
-## Bilinen tuzaklar (UE 5.8 + Cosys-AirSim 3.5)
+**Copyright © 2026 Sanberk Doruk Çankaya ([Felix-sof](https://github.com/Felix-sof)). All rights reserved.**
 
-- AirSim kamerası **siyah** çeker: Unreal Orta kalitede (scalability) açılırsa, Lumen ya da
-  Virtual Shadow Maps kapalıysa. Epic + Lumen + VSM açık kalmalı.
-- Unreal çalışırken render ayarı değiştirmek (`simRunConsoleCommand`) kamerayı o oturum boyunca bozar.
-- `settings.json` içindeki `SubWindows` alt kamerayı dondurur; önizleme için `--goster` kullan.
-- Donanımsal ışın izleme açıkken NVIDIA sürücüsü çöküyor: `r.RayTracing=False`.
-- Alt kamera gövdenin içindeyse tespit çizgisini drone'un kendisi keser: kamera Z=0.3.
-- `cv2.imwrite` Türkçe karakterli yollara (Masaüstü) sessizce yazamıyor.
-- `simSpawnObject` ile, az önce silinen bir nesnenin adıyla hemen yeni nesne oluşturmak Unreal'i
-  çökertiyor (LevelActor.cpp:586); her pakete ayrı ad verilir.
-- Nesne konumu ~45 Hz güncelleniyor: daha sık okununca aynı değer tekrar gelir.
+This repository is **not** open source. No part of the code, documentation or other content may be used,
+copied, modified or distributed without written permission. Details: [LICENSE](LICENSE).
 
-## Yol haritası
-
-- [x] Waypoint görevi, otomatik etiketli veri, YOLO eğitimi, hassas iniş
-- [x] Havada durarak paket bırakma
-- [x] Orman haritası, gerçekçi araba modeli, her turda rastgele boya/konum/hava
-- [x] Hedefi YOLO ile bulup bırakma (20 deneme: 14 hedef, 0 ağaç/yer)
-- [x] Rotasız tam otonom görev (3 görev, 9/9 isabet)
-- [x] İnsansız gece otomasyonu (Unreal'i bayrak dosyalarıyla aç/Play/kapat)
-- [ ] Tespiti güçlendirme: daha çok sahne, recall 0.75 → 0.9
-- [x] PX4 SITL, rüzgar (9/9), teslimat noktası modu (12/12), negatif test
-- [x] Alçalıp bırakma (5 m): merkeze 0.05 m, çarpma hızı 22 → 10 m/s
-- [ ] Arama-kurtarma: kişiyi bul, güvenli mesafeye yardım paketi bırak
-- [ ] Sabit kanatlı versiyon
-
-## Lisans ve kullanım hakları
-
-**Telif hakkı © 2026 Sanberk Doruk Çankaya ([Felix-sof](https://github.com/Felix-sof)). Tüm hakları saklıdır.**
-
-Bu depo açık kaynak **değildir**. Kodun, belgelerin ve diğer içeriğin hiçbir parçası yazılı izin
-olmadan kullanılamaz, kopyalanamaz, değiştirilemez ya da dağıtılamaz. Ayrıntılar: [LICENSE](LICENSE).
-
-Üçüncü taraf bileşenler (Unreal Engine, Cosys-AirSim, PX4, MAVSDK, OpenCV, Ultralytics YOLO, harita
-varlıkları) ve eğitimde kullanılan veri setleri (VisDrone, HERIDAL) bu depoya dahil değildir ve kendi
-lisanslarına tabidir.
+Third-party components (Unreal Engine, Cosys-AirSim, PX4, MAVSDK, OpenCV, Ultralytics YOLO, map assets) and
+the training datasets (VisDrone, HERIDAL) are not included in this repository and are subject to their own
+licenses.
