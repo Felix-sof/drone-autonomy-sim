@@ -365,3 +365,19 @@ akışı sessizce değiştirdi.
 - 50-75 m'de kişi tespiti için görüntüyü parçalayarak tarama (tiling).
 - Ağaç altında görünmeyen ama etiketlenen nesneler (etiket kalitesi).
 - Gerçek donanım: kamera kalibrasyonu, titreşim, gecikme, gerçek veri.
+
+## Yol haritası (2026-11-04, sırayla)
+
+1. **Arama-kurtarma testleri** yeni modelle, rastgele biyomlarda (kişi bulma oranı, bırakma isabeti,
+   tehlikeli bırakma = 0).
+2. **Rüzgar telafisi:** drone'un eğiminden rüzgar tahmini kalibrasyonu; 25 m'de telafisiz / bilinen
+   rüzgar / eğimden tahmin karşılaştırması.
+3. **50 m ve 75 m bırakma** (önce araçların yanındaki teslimat noktalarında; büyük işaretçi ya da iki
+   aşamalı hizalama).
+4. **Hedef filtresi:** görevde `--hedef araba | insan | ikisi`.
+5. **Haritadan görev seçme:** haritanın üstten görüntüsü üzerinde arama alanı, nokta ve teslimat
+   noktası çizen bir arayüz → görev dosyası → drone bu dosyayla uçar (gerçek drone'da da aynı dosya).
+6. **İnsanlara yardım ulaştırma:** araçlarda başarı oturduktan sonra ana hedef kişiler. Paket kişiye
+   nişanlanmaz: en az 5 m uzağa açık zemine, sonra ipli teslimatla kol mesafesine (K-12).
+7. **Sabit kanat:** havada duramaz; hedef üstünde dönerek uçar, paraşütlü bırakma, işaretli teslimat
+   noktaları. Görev dosyası, tespit ve güvenlik katmanları taşınır.
