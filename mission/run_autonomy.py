@@ -123,7 +123,7 @@ def main():
     if args.ruzgar_telafi == "bilinen":
         autonomy.WIND_COMP = ("known", (wn, we))
     elif args.ruzgar_telafi == "egim":
-        autonomy.WIND_COMP = ("tilt", cfg.get("wind_k_d", 0.0045))
+        autonomy.WIND_COMP = ("tilt", cfg.get("wind_k_d", 0.00065))
 
     def on_drop(pkg, marker_id=None):  # sadece değerlendirme: Unreal'in gerçek konumlarıyla
         drone = client.simGetVehiclePose().position     # bırakma anındaki gerçek drone konumu

@@ -326,7 +326,21 @@ yüzden gerçeğe doğrudan taşınmaz.
   havada dururken ve işaretli teslimat noktalarında.
 - Paketin sürüklenme katsayısı birkaç test bırakmasıyla ölçülür.
 
-**Durum:** Kod ve simülatörsüz testler hazır; simülasyonda kalibrasyon ve karşılaştırma bekliyor.
+**Kalibrasyon (2026-11-04, AirSim):** drone 25 m'de 8 s oturup 4 s ölçtüğünde `tan(eğim) = k·v²` modeli
+tutuyor (doğu rüzgarında 3, 5, 8 m/s için k = 0.00072); k = 0.00065 ile tahmin hatası 0.05–0.6 m/s, yön
+çoğunlukla ≤ 6° (çapraz rüzgarda en kötü 14°). Kodda varsayılan 0.0045'ti: ~7 kat yanlış.
+
+**Karşılaştırma (doğudan 5 m/s, 25 m'den tavana, gerçekçi paket fiziği, 3'er paket):**
+
+| Telafi | Tavana isabet | Merkeze |
+|---|---|---|
+| yok | 0/3 | 5.9 / 8.2 / 8.1 m |
+| gerçek rüzgarla | **3/3** | **0.11 / 0.07 / 0.03 m** |
+| eğimden tahminle | 1/3 | 1.8 / 5.9 / 4.7 m |
+
+Hesap doğru; zayıf halka görev içindeki rüzgar tahmini: hizalanma manevrasından hemen sonra 1.5 s ölçülüyor,
+kalan manevra eğimi tahmini 3 m/s ve 45°'ye kadar saptırıyor. **Sonraki adım:** bırakmadan önce birkaç
+saniye oturup daha uzun ölçmek ya da rüzgarı arama boyunca sürekli ölçüp ortalamak.
 
 **Bedel:** Paket tasarımı da hassasiyetin parçası: daha ağır ve küçük paket kabaca yarı kayma.
 
@@ -396,8 +410,8 @@ Demo videosu: `docs/videos/arac_ustu.mp4`.
 
 1. **Arama-kurtarma testleri** yeni modelle, rastgele biyomlarda (kişi bulma oranı, bırakma isabeti,
    tehlikeli bırakma = 0).
-2. **Rüzgar telafisi:** drone'un eğiminden rüzgar tahmini kalibrasyonu; 25 m'de telafisiz / bilinen
-   rüzgar / eğimden tahmin karşılaştırması.
+2. **Rüzgar telafisi:** kalibrasyon ve karşılaştırma yapıldı (K-18): hesap doğru (bilinen rüzgarla 3/3, 3–11 cm);
+   görev içi eğim tahmini iyileştirilecek (oturma süresi / sürekli ortalama).
 3. **50 m ve 75 m bırakma** (önce araçların yanındaki teslimat noktalarında; büyük işaretçi ya da iki
    aşamalı hizalama).
 4. **Hedef filtresi:** görevde `--hedef araba | insan | ikisi`.

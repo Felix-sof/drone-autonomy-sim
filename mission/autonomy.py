@@ -92,8 +92,9 @@ def ground_estimates(vehicle, img, boxes):
     return out
 
 
-def align_over_target(vehicle, grab, detector, timeout=40, show=True, tol=ALIGN_TOL_M, gain=0.5):
-    """En yakın arabaya kilitlenip (takip) tam üstüne gelene kadar NED hız komutuyla kayar."""
+def align_over_target(vehicle, grab, detector, timeout=40, show=True, tol=ALIGN_TOL_M, gain=0.5, target=(0.0, 0.0)):
+    """En yakın arabaya kilitlenip (takip) tam üstüne gelene kadar NED hız komutuyla kayar.
+    target: arabanın drone'a göre olması gereken yeri (Δn, Δe); rüzgar telafisinde sıfırdan farklı."""
     t0 = time.time()
     track, misses, good = None, 0, 0
     vn_f = ve_f = 0.0  # yumuşatılmış komut
@@ -120,7 +121,7 @@ def align_over_target(vehicle, grab, detector, timeout=40, show=True, tol=ALIGN_
         g = pixel_to_ground(img.shape, *track, vehicle.height_agl(), roll, pitch, yaw)
         if g is None:
             continue
-        dn, de = g
+        dn, de = g[0] - target[0], g[1] - target[1]
         err = math.hypot(dn, de)
         good = good + 1 if err < tol else 0
         if good >= 3:
@@ -307,7 +308,7 @@ def target_offset_avg(vehicle, grab, detector, n=FINE_FRAMES):
     return mn, me, max(math.hypot(p[0] - mn, p[1] - me) for p in pts)
 
 
-def fine_align_target(vehicle, grab, detector, tries=3):
+def fine_align_target(vehicle, grab, detector, tries=3, target=(0.0, 0.0)):
     """Tavan modunda bırakmadan önce: arabanın merkezini FINE_FRAMES ortalamasıyla ölç, FINE_TOL_M'den
     uzaksa sıkı toleransla tekrar hizalan. Son ölçüm ya da None."""
     last = None
@@ -316,9 +317,9 @@ def fine_align_target(vehicle, grab, detector, tries=3):
         last = target_offset_avg(vehicle, grab, detector)
         if last is None:
             return None
-        if math.hypot(last[0], last[1]) < FINE_TOL_M:
+        if math.hypot(last[0] - target[0], last[1] - target[1]) < FINE_TOL_M:
             return last
-        align_over_target(vehicle, grab, detector, tol=FINE_TOL_M * 0.8, gain=0.4)
+        align_over_target(vehicle, grab, detector, tol=FINE_TOL_M * 0.8, gain=0.4, target=target)
     return last
 
 
@@ -392,8 +393,17 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
                 log("  bu araba zaten teslim aldı, bırakılmadı; aramaya devam")
                 continue
             fine = None
+            wind, off = None, (0.0, 0.0)
             if mode == "roof":   # tavanın ortası: 8 kare ortalamasıyla ince hizalama (12 cm)
-                fine = fine_align_target(vehicle, grab, detector)
+                target = (0.0, 0.0)
+                if WIND_COMP is not None:   # rüzgar paketi sürükleyecek: bırakma noktasını rüzgara karşı kaydır
+                    import ballistics
+                    wind = estimate_wind(vehicle)
+                    off = ballistics.release_offset(max(0.5, vehicle.height_agl() - 0.7), wind)
+                    target = (-off[0], -off[1])
+                    log(f"  rüzgar {math.hypot(*wind):.1f} m/s ({wind[0]:+.1f}, {wind[1]:+.1f}) -> bırakma noktası "
+                        f"{math.hypot(*off):.1f} m rüzgara karşı kaydırıldı")
+                fine = fine_align_target(vehicle, grab, detector, target=target)
                 if fine is None:
                     log("  ince hizalamada araba görülemedi, bırakılmadı; aramaya devam")
                     continue
@@ -451,6 +461,9 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
                    "isaretci": marker_id, "zaman_s": round(time.time() - t_start, 1)}
             if mode == "roof":
                 rec["kamera_hedef_ne_m"] = [round(fine[0], 3), round(fine[1], 3)]
+                if wind is not None:
+                    rec["ruzgar_tahmini_ne"] = [round(wind[0], 2), round(wind[1], 2)]
+                    rec["telafi_kaydirma_ne_m"] = [round(off[0], 2), round(off[1], 2)]
             if mode == "dropzone":   # bırakma anında kameranın ölçtüğü işaretçi sapması (ortalama)
                 rec["kamera_isaretci_ne_m"] = [round(fine[0], 3), round(fine[1], 3)]
                 rec["kamera_yayilim_m"] = round(fine[2], 3)

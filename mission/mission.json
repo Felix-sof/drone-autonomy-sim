@@ -46,5 +46,6 @@
   "randomize_weather": true,
   "camera_gimbal": true,
   "camera_yaw_lock_deg": 0.0,
-  "chase_camera": "chase_cam"
+  "chase_camera": "chase_cam",
+  "wind_k_d": 0.00065
 }

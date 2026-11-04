@@ -217,3 +217,13 @@ def test_fine_align_target_centers_on_car_roof():
     fine = autonomy.fine_align_target(v, world.grab, world)
     assert fine is not None and math.hypot(fine[0], fine[1]) < autonomy.FINE_TOL_M
     assert math.hypot(v.p[0] - 0.25, v.p[1] + 0.2) < autonomy.FINE_TOL_M
+
+
+def test_fine_align_target_with_wind_offset():
+    # rüzgar paketi 3 m doğuya sürükleyecekse drone arabanın 3 m batısında bırakmalı:
+    # araba drone'a göre (0, +3)'te görünmeli
+    v = FakeVehicle(0, 0, alt=25)
+    world = FakeWorld(v, [(0.0, 0.0, 0)])
+    fine = autonomy.fine_align_target(v, world.grab, world, target=(0.0, 3.0))
+    assert fine is not None
+    assert abs(v.p[0]) < autonomy.FINE_TOL_M and abs(v.p[1] + 3.0) < autonomy.FINE_TOL_M

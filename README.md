@@ -38,8 +38,9 @@ Real-drone guide: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md) · design decisio
 | Car detector trained **only on simulation**, tested on real drone images (VisDrone) | mAP50 **0.02**: sim-only does not transfer |
 | Same detector trained on **sim + real data** | cars mAP50 **0.89** on real images, 0.88 in sim |
 | Person detection after adding 5 biomes, 32 posed people and real SAR data (HERIDAL) | sim **0.19 → 0.56**, HERIDAL **0.26 → 0.68**, VisDrone 0.59 → 0.62 |
+| **Wind:** 5 m/s crosswind, drop onto the roof from 25 m with drag + wind physics | no compensation **0/3** (5.9–8.2 m off); compensation with the true wind **3/3, 3–11 cm**; with wind estimated from the drone's tilt 1/3 (estimator needs longer settling, next step) |
 | Negative test: 40 % of drop-zone markers removed | **0** deliveries to unmarked cars |
-| Simulator-free tests (fake vehicle, closed loop) | **43** tests, ~1.5 s |
+| Simulator-free tests (fake vehicle, closed loop) | **44** tests, ~1.5 s |
 
 "Hit" means the package's **first contact** point is on the target car's top-down footprint (another car, a tree
 or the ground are counted separately). Full results table: [README.tr.md](README.tr.md#sonuçlar-şimdiye-kadar).
@@ -112,7 +113,8 @@ CLI flags and log messages are in Turkish (`teslimat` = deliveries, `irtifa` = a
 - [x] Sim-to-real detector (sim + VisDrone + HERIDAL), 5 biomes, 32 posed people
 - [x] Search-and-rescue with a ≥ 5 m safety distance (9/9 safe, 0 dangerous)
 - [x] Roof drop with fine alignment (25 m: ~10 cm from the roof centre)
-- [ ] Wind compensation validated in simulation (code and offline tests done)
+- [x] Wind compensation math validated in sim (true wind: 3/3 roof hits in 5 m/s wind)
+- [ ] In-flight wind estimate from tilt (calibrated; needs longer settling before release)
 - [ ] Drops from 50 m and 75 m
 - [ ] Target filter (cars / people / both) and map-based mission planning UI
 - [ ] Fixed-wing version
