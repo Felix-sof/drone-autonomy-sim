@@ -45,5 +45,6 @@
   "detection_radius_m": 80,
   "randomize_weather": true,
   "camera_gimbal": true,
-  "camera_yaw_lock_deg": 0.0
+  "camera_yaw_lock_deg": 0.0,
+  "chase_camera": "chase_cam"
 }

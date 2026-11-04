@@ -39,6 +39,7 @@ Kararlar kronolojik sırada. Yeni karar verildikçe sona eklenir; geçersiz olan
 | K-19 | Simülatörsüz kapalı döngü testler | Mantık hataları dakikalar değil saniyeler içinde |
 | K-20 | Ölçüm altyapısının kendisini test etmek | İki kez yanlış ölçen kod yakalandı |
 | K-21 | Yeni davranış isteğe bağlı eklenir | Kullanıcının seçtiği akış sessizce değişmez |
+| K-22 | Ana mod: aracın tavanına bırakma (+ ince hizalama) | Hedef arabaya doğrudan isabet; 25 m'den tavana 10 cm |
 
 ---
 
@@ -359,6 +360,23 @@ akışı sessizce değiştirdi.
 
 **Karar:** Yeni fikirler **seçenek olarak** eklenir (`--birakma-irtifa`, `--teslim ip`,
 `--paket-fizigi`, `--ruzgar-telafi`); sonuçlar ölçülüp raporlanır, varsayılan yapılmadan önce sorulur.
+
+
+## K-22 · Ana mod: aracın tavanına bırakma, ince hizalamayla
+
+**Sorun:** Teslimat noktası modunda paket aracın 3.8 m yanındaki işaretçiye düşüyor. Dışarıdan bakan
+biri bunu "arabayı bulmuş ama ıskalamış" diye okuyor (kullanıcı geri bildirimi, 2026-11-04).
+
+**Karar (kullanıcının seçimi):** Varsayılan görev modu `roof`: paket havada sabit duran drone'dan, park
+hâlindeki hedef arabanın tavanına bırakılır. Teslimat noktası modu `--mod dropzone` ile seçilebilir.
+Teslimat noktasındaki ince hizalama (K-14) tavan moduna da eklendi: araba kutusunun merkezi 8 karenin
+ortalamasıyla ölçülür, 12 cm'den uzaksa sıkı toleransla yeniden hizalanılır.
+
+**Değişmeyenler:** Kişilerin üstüne bırakma yok (arama-kurtarmada en az 5 m, K-12); hareket hâlinde
+bırakma / balistik nişan yok.
+
+**Kanıt:** AirSim'de 25 m'den iki deneme: ilk temas hedef arabanın tavanında, merkeze 12 cm ve 10 cm.
+Demo videosu: `docs/videos/arac_ustu.mp4`.
 
 ---
 

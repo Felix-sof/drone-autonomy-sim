@@ -41,8 +41,8 @@ def main():
     ap.add_argument("--ruzgar", default="0,0", help="sabit rüzgar, m/s: kuzey,doğu (ör. 6,3)")
     ap.add_argument("--isaretcisiz", type=float, default=0.0,
                     help="dropzone modunda araçların bu oranının teslimat işaretçisini kaldır (negatif test)")
-    ap.add_argument("--mod", choices=["dropzone", "roof", "sar"], default="dropzone",
-                    help="dropzone: aracın yanındaki ArUco teslimat noktasına; roof: araç üstüne; "
+    ap.add_argument("--mod", choices=["roof", "dropzone", "sar"], default="roof",
+                    help="roof (varsayılan): aracın tavanına; dropzone: aracın yanındaki ArUco teslimat noktasına; "
                          "sar: kişi ara, güvenli mesafede yardım paketi bırak (iki sınıflı model)")
     ap.add_argument("--imgsz", type=int, default=960, help="tespit çözünürlüğü (sar için 1280 önerilir)")
     ap.add_argument("--teslim", choices=["ip", "birak"], default="birak",

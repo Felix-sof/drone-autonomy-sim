@@ -4,6 +4,10 @@ Unreal Engine 5.8 + [Cosys-AirSim](https://github.com/Cosys-Lab/Cosys-AirSim) + 
 bir drone: alanı kendisi tarar, alt kamerasıyla arabaları tespit eder, hedefin üstüne hizalanıp
 kargo paketi bırakır ve **ArUco işaretçili helipad'e sadece kamerayla** iner.
 
+**Demo:** [docs/videos/arac_ustu.mp4](docs/videos/arac_ustu.mp4) (~33 s, 2× hız). Solda takip kamerası, sağda
+drone'un alt kamerası. Drone arabayı bulur (kırmızı kutu), tavanının üstüne hizalanır, paketi **25 m'den** bırakır;
+ilk temas arabanın tavanında, merkeze 10 cm. Ardından helipad'e işaretçiyle iner. (AirSim uçuş kontrolcüsü.)
+
 Görev kodu simülatörden bağımsız yazıldı (araç / kamera / paket arayüzleri): aynı `autonomy.py`
 AirSim'in uçuş kontrolcüsüyle, PX4 SITL ile ve — arka uçları değiştirerek — gerçek drone'da
 çalışır. Gerçek drone'a geçiş: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md). Kararlar ve nedenleri: [docs/TEKNIK_KARARLAR.md](docs/TEKNIK_KARARLAR.md).
@@ -130,6 +134,7 @@ python mission/autonomous_mission.py --model C:/UE/drone_runs/car_forest2/weight
 # taşınabilir görev çekirdeği (bash mission/sim.sh px4 ile simülatör + PX4 açıkken)
 python mission/run_autonomy.py --model C:/UE/drone_runs/car_mixed2/weights/best.pt --backend px4 --teslimat 3
 #   --birakma-irtifa 5   isteğe bağlı: hedefin üstünde 5 m'ye alçalıp bırak (varsayılan: seyir irtifasından)
+#   --mod roof (varsayılan) aracın tavanına | --mod dropzone yanındaki teslimat noktasına
 #   --mod sar --imgsz 1280   arama-kurtarma (iki sınıflı model)
 #   --ruzgar 6,3   --isaretcisiz 0.4   rüzgar / negatif test
 ```

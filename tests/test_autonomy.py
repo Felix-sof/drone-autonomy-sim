@@ -209,3 +209,11 @@ def test_release_bias_shifts_alignment(monkeypatch):
     monkeypatch.setattr(autonomy, "RELEASE_BIAS_NE", (0.5, 0.0))   # paket drone'un 0.5 m kuzeyine düşüyormuş
     autonomy.fine_align_marker(v, FakeWorld(v, []).grab, 3)
     assert abs(v.p[0] + 0.5) < autonomy.FINE_TOL_M and abs(v.p[1]) < autonomy.FINE_TOL_M
+
+
+def test_fine_align_target_centers_on_car_roof():
+    v = FakeVehicle(0, 0, alt=25)
+    world = FakeWorld(v, [(0.25, -0.2, 0)])          # gevşek hizalamadan kalan 32 cm sapma
+    fine = autonomy.fine_align_target(v, world.grab, world)
+    assert fine is not None and math.hypot(fine[0], fine[1]) < autonomy.FINE_TOL_M
+    assert math.hypot(v.p[0] - 0.25, v.p[1] + 0.2) < autonomy.FINE_TOL_M

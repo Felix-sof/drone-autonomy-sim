@@ -46,6 +46,28 @@
             "Roll": 0.0,
             "Yaw": 0.0
           }
+        },
+        "chase_cam": {
+          "X": -3.0,
+          "Y": 0.0,
+          "Z": -1.3,
+          "Pitch": -22.0,
+          "Roll": 0.0,
+          "Yaw": 0.0,
+          "CaptureSettings": [
+            {
+              "ImageType": 0,
+              "Width": 960,
+              "Height": 540,
+              "FOV_Degrees": 80
+            }
+          ],
+          "Gimbal": {
+            "Stabilization": 1.0,
+            "Pitch": -22.0,
+            "Roll": 0.0,
+            "Yaw": 0.0
+          }
         }
       }
     }

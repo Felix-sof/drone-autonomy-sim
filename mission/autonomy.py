@@ -92,7 +92,7 @@ def ground_estimates(vehicle, img, boxes):
     return out
 
 
-def align_over_target(vehicle, grab, detector, timeout=40, show=True):
+def align_over_target(vehicle, grab, detector, timeout=40, show=True, tol=ALIGN_TOL_M, gain=0.5):
     """En yakın arabaya kilitlenip (takip) tam üstüne gelene kadar NED hız komutuyla kayar."""
     t0 = time.time()
     track, misses, good = None, 0, 0
@@ -122,11 +122,11 @@ def align_over_target(vehicle, grab, detector, timeout=40, show=True):
             continue
         dn, de = g
         err = math.hypot(dn, de)
-        good = good + 1 if err < ALIGN_TOL_M else 0
+        good = good + 1 if err < tol else 0
         if good >= 3:
             vehicle.hover()
             return True
-        sp = min(1.5, 0.5 * err)
+        sp = min(1.5, gain * err)
         vn, ve = (dn / err * sp, de / err * sp) if err > 1e-6 else (0.0, 0.0)
         vn_f, ve_f = 0.5 * vn_f + 0.5 * vn, 0.5 * ve_f + 0.5 * ve   # ani yön değişimini yumuşat
         vehicle.velocity_ned(vn_f, ve_f, 0.0)
@@ -282,6 +282,46 @@ def descend_over_marker(vehicle, grab, marker_id, target_alt, detector=None, tim
     return "alçalma zaman aşımı"
 
 
+def target_offset_avg(vehicle, grab, detector, n=FINE_FRAMES):
+    """Drone dururken n karede, görüntü merkezine en yakın arabanın yerdeki ortalama konumu
+    (drone'a göre Δn, Δe) ve yayılımı. Görülemezse None."""
+    pts = []
+    for _ in range(n * 3):
+        if len(pts) >= n:
+            break
+        img = grab()
+        roll, pitch, yaw = vehicle.attitude()
+        h, w = img.shape[:2]
+        boxes = detector.detect(img, conf=TRACK_CONF)
+        b = min(boxes, key=lambda b: math.dist(box_center(b), (w / 2, h / 2)), default=None)
+        if b is None or math.dist(box_center(b), (w / 2, h / 2)) > 0.15 * w:
+            continue
+        fly_mission.show(img, [b])
+        g = pixel_to_ground(img.shape, *box_center(b), vehicle.height_agl(), roll, pitch, yaw)
+        if g is not None:
+            pts.append(g)
+    if len(pts) < max(3, n // 2):
+        return None
+    mn = sum(p[0] for p in pts) / len(pts)
+    me = sum(p[1] for p in pts) / len(pts)
+    return mn, me, max(math.hypot(p[0] - mn, p[1] - me) for p in pts)
+
+
+def fine_align_target(vehicle, grab, detector, tries=3):
+    """Tavan modunda bırakmadan önce: arabanın merkezini FINE_FRAMES ortalamasıyla ölç, FINE_TOL_M'den
+    uzaksa sıkı toleransla tekrar hizalan. Son ölçüm ya da None."""
+    last = None
+    for _ in range(tries):
+        vehicle.wait_still(max_speed=0.05)
+        last = target_offset_avg(vehicle, grab, detector)
+        if last is None:
+            return None
+        if math.hypot(last[0], last[1]) < FINE_TOL_M:
+            return last
+        align_over_target(vehicle, grab, detector, tol=FINE_TOL_M * 0.8, gain=0.4)
+    return last
+
+
 def nearest_dropzone(vehicle, img):
     """Görüntü merkezindeki (hizalanılan) arabaya en yakın teslimat işaretçisi: (id, mesafe_m) ya da None."""
     roll, pitch, yaw = vehicle.attitude()
@@ -351,6 +391,13 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
             if mode == "roof" and any(math.hypot(n - dn, e - de) < NEW_TARGET_M for dn, de in dropped):
                 log("  bu araba zaten teslim aldı, bırakılmadı; aramaya devam")
                 continue
+            fine = None
+            if mode == "roof":   # tavanın ortası: 8 kare ortalamasıyla ince hizalama (12 cm)
+                fine = fine_align_target(vehicle, grab, detector)
+                if fine is None:
+                    log("  ince hizalamada araba görülemedi, bırakılmadı; aramaya devam")
+                    continue
+                n, e, _ = vehicle.position()
             marker_id = None
             if mode == "dropzone":
                 dz = None
@@ -402,6 +449,8 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
             handle = payload.release()
             rec = {"no": len(results) + 1, "n": round(n, 2), "e": round(e, 2), "guven": round(conf, 2),
                    "isaretci": marker_id, "zaman_s": round(time.time() - t_start, 1)}
+            if mode == "roof":
+                rec["kamera_hedef_ne_m"] = [round(fine[0], 3), round(fine[1], 3)]
             if mode == "dropzone":   # bırakma anında kameranın ölçtüğü işaretçi sapması (ortalama)
                 rec["kamera_isaretci_ne_m"] = [round(fine[0], 3), round(fine[1], 3)]
                 rec["kamera_yayilim_m"] = round(fine[2], 3)
