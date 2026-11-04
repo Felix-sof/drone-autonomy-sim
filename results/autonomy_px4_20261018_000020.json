@@ -1,0 +1,110 @@
+{
+  "backend": "px4",
+  "ruzgar": "0,0",
+  "model": "C:/UE/drone_runs/car_mixed2/weights/best.pt",
+  "irtifa_m": 25.0,
+  "birakma_irtifa_m": null,
+  "mod": "dropzone",
+  "sure_s": 191.4,
+  "inis_hatasi_m": 0.1,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": -27.73,
+      "e": -20.8,
+      "guven": 0.75,
+      "isaretci": 5,
+      "zaman_s": 58.2,
+      "kamera_isaretci_ne_m": [
+        0.006,
+        -0.014
+      ],
+      "kamera_yayilim_m": 0.024,
+      "birakma_irtifa_m": 24.57,
+      "carpma_ofset_ne_m": [
+        -0.047,
+        0.014
+      ],
+      "drone_ofset_ne_m": [
+        -0.047,
+        0.014
+      ],
+      "dusus_kaymasi_ne_m": [
+        0.0,
+        0.0
+      ],
+      "isabet": true,
+      "araba": "StaticMeshActor_2292",
+      "isaretci_merkezine_m": 0.05,
+      "carpma_hizi_ms": 28.3,
+      "araca_carpti": false,
+      "sonuc_metni": "TESLİMAT NOKTASINA ✔ (işaretçi #5 merkezine 0.05 m)"
+    },
+    {
+      "no": 2,
+      "n": -33.51,
+      "e": -23.97,
+      "guven": 0.56,
+      "isaretci": 6,
+      "zaman_s": 98.2,
+      "kamera_isaretci_ne_m": [
+        -0.022,
+        -0.006
+      ],
+      "kamera_yayilim_m": 0.012,
+      "birakma_irtifa_m": 24.58,
+      "carpma_ofset_ne_m": [
+        -0.005,
+        -0.018
+      ],
+      "drone_ofset_ne_m": [
+        -0.005,
+        -0.018
+      ],
+      "dusus_kaymasi_ne_m": [
+        0.0,
+        0.0
+      ],
+      "isabet": true,
+      "araba": "StaticMeshActor_2293",
+      "isaretci_merkezine_m": 0.02,
+      "carpma_hizi_ms": 29.9,
+      "araca_carpti": false,
+      "sonuc_metni": "TESLİMAT NOKTASINA ✔ (işaretçi #6 merkezine 0.02 m)"
+    },
+    {
+      "no": 3,
+      "n": 8.19,
+      "e": -34.61,
+      "guven": 0.59,
+      "isaretci": 4,
+      "zaman_s": 148.4,
+      "kamera_isaretci_ne_m": [
+        -0.002,
+        0.015
+      ],
+      "kamera_yayilim_m": 0.03,
+      "birakma_irtifa_m": 24.93,
+      "carpma_ofset_ne_m": [
+        -0.041,
+        -0.013
+      ],
+      "drone_ofset_ne_m": [
+        -0.039,
+        -0.013
+      ],
+      "dusus_kaymasi_ne_m": [
+        -0.001,
+        -0.0
+      ],
+      "isabet": true,
+      "araba": "StaticMeshActor_2291",
+      "isaretci_merkezine_m": 0.04,
+      "carpma_hizi_ms": 27.5,
+      "araca_carpti": false,
+      "sonuc_metni": "TESLİMAT NOKTASINA ✔ (işaretçi #4 merkezine 0.04 m)"
+    }
+  ]
+}

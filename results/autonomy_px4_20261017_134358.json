@@ -1,0 +1,59 @@
+{
+  "backend": "px4",
+  "ruzgar": "0,0",
+  "model": "C:/UE/drone_runs/car_mixed2/weights/best.pt",
+  "irtifa_m": 25.0,
+  "birakma_irtifa_m": null,
+  "mod": "dropzone",
+  "sure_s": 175.2,
+  "inis_hatasi_m": 0.09,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": -26.95,
+      "e": -25.12,
+      "guven": 0.54,
+      "isaretci": 2,
+      "zaman_s": 51.3,
+      "birakma_irtifa_m": 24.67,
+      "isabet": true,
+      "araba": "StaticMeshActor_642",
+      "isaretci_merkezine_m": 0.25,
+      "carpma_hizi_ms": 21.7,
+      "araca_carpti": false,
+      "sonuc_metni": "TESLİMAT NOKTASINA ✔ (işaretçi #2 merkezine 0.25 m)"
+    },
+    {
+      "no": 2,
+      "n": 8.23,
+      "e": -34.82,
+      "guven": 0.53,
+      "isaretci": 4,
+      "zaman_s": 98.4,
+      "birakma_irtifa_m": 24.77,
+      "isabet": true,
+      "araba": "StaticMeshActor_644",
+      "isaretci_merkezine_m": 0.22,
+      "carpma_hizi_ms": 21.5,
+      "araca_carpti": false,
+      "sonuc_metni": "TESLİMAT NOKTASINA ✔ (işaretçi #4 merkezine 0.22 m)"
+    },
+    {
+      "no": 3,
+      "n": 28.59,
+      "e": -24.06,
+      "guven": 0.71,
+      "isaretci": 8,
+      "zaman_s": 130.1,
+      "birakma_irtifa_m": 24.84,
+      "isabet": true,
+      "araba": "StaticMeshActor_648",
+      "isaretci_merkezine_m": 0.53,
+      "carpma_hizi_ms": 21.5,
+      "araca_carpti": false,
+      "sonuc_metni": "TESLİMAT NOKTASINA ✔ (işaretçi #8 merkezine 0.53 m)"
+    }
+  ]
+}

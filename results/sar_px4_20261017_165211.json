@@ -1,0 +1,7 @@
+{
+  "backend": "px4",
+  "model": "C:/UE/drone_runs/carperson/weights/best.pt",
+  "sure_s": 146.0,
+  "birakma_irtifa_m": 8.0,
+  "paketler": []
+}
