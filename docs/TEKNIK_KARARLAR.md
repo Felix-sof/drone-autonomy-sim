@@ -41,6 +41,9 @@ Kararlar kronolojik sırada. Yeni karar verildikçe sona eklenir; geçersiz olan
 | K-21 | Yeni davranış isteğe bağlı eklenir | Kullanıcının seçtiği akış sessizce değişmez |
 | K-22 | Ana mod: aracın tavanına bırakma (+ ince hizalama) | Hedef arabaya doğrudan isabet; 25 m'den tavana 10 cm |
 | K-23 | Hedef filtresi + karma görev; kişi kuralı araç modlarında da | Tek aramada araba ve kişi; kimsenin yanına paket düşmez |
+| K-24 | YOLO'yu ısıtmak + FP16 | Unreal ile GPU paylaşımında kilitlenme bitti |
+| K-25 | İrtifaya göre tam kaplayan tarama | 50 m ve 75 m'den tavana 3/3 |
+| K-26 | Rüzgar tahmini için tablo kalibrasyonu | Çapraz rüzgarda 0/3 → 3/3; rüzgarda 9/9 |
 
 ---
 
@@ -452,6 +455,34 @@ yalnızca video modunda (`sim.sh video`).
 | 50 m | 3/3 | 11 / 3 / 5 cm |
 | 75 m | 3/3 | 23 / 5 / 16 cm |
 
+
+## K-26 · Rüzgar tahmini: tablo (look-up) kalibrasyonu
+
+**Sorun:** Tek katsayıyla (`tan(eğim) = k·v²`) drone rüzgarı doğu rüzgarında iyi, çaprazda kötü ölçüyordu
+(kuzeybatı 1/3, güneydoğu 0/3 tavana isabet).
+
+**Denenenler (sırayla, ölçerek):**
+1. 2×2 matris (yöne göre ölçek + dönüş, "elips"): görülmemiş rüzgarlarda ort. hata 1.20 m/s, tek katsayıdan kötü (1.09).
+2. Açıya bağlı harmonik (4θ, X gövde simetrisi): kalibrasyonda 0.20 m/s, ama 30° ızgaranın arasında kalan güneydoğu
+   rüzgarında yönü ~27° yanlış verdi → 0/3.
+3. **Teşhis:** kalibrasyon verisi son derece tekrarlanabilir (5 ve 8 m/s'de aynı), 180°'de bir tekrarlıyor ama
+   düzgün değil: sapma 60°'de −14°, 90°'de +6° (30°'de 20°'lik sıçrama). Drone'un burnu da −7°'ye bakıyor.
+
+**Karar:** 10°'de bir 36 yön ölçülüp gövde açısına göre tablo (sapma δ ve katsayı k); ara açılar doğrusal.
+Bir-dışarıda doğrulama: tek katsayı ort. 0.84 / en kötü 1.21 m/s → **tablo ort. 0.08 / en kötü 0.70 m/s**.
+`wind_calibrate.py --tablo --kaydet` → `mission.json` `wind_lut`.
+
+**Kanıt (25 m, tavana, gerçekçi paket fiziği, drone rüzgarı kendi eğiminden ölçerek):**
+
+| Rüzgar | Tahmin | Tavana isabet | Merkeze |
+|---|---|---|---|
+| güneydoğu 5.7 m/s (+4, −4) | (+4.0, −4.0) | **3/3** | 0.13 / 0.19 / 0.21 m |
+| kuzeybatı 5 m/s (−3, +4) | (−3.0, +3.9) | **3/3** | 0.04 / 0.03 / 0.31 m |
+| doğu 5 m/s (0, +5) | (+0.1…0.6, +4.9) | **3/3** | 0.90 / 0.08 / 0.76 m |
+
+**Bedel / gerçek drone:** Desen bu drone'a ve kontrolcüye özgü; gerçek drone için aynı ölçüm (bilinen rüzgarda,
+36 yön) tekrarlanmalı. Ani rüzgar darbeleri ve düşüş sırasında değişen rüzgar bu yöntemin dışında.
+
 ---
 
 ## Açık konular
@@ -474,8 +505,7 @@ yalnızca video modunda (`sim.sh video`).
 
 1. **Arama-kurtarma testleri** yeni modelle, rastgele biyomlarda (kişi bulma oranı, bırakma isabeti,
    tehlikeli bırakma = 0).
-2. **Rüzgar telafisi:** kalibrasyon ve karşılaştırma yapıldı (K-18): hesap doğru (bilinen rüzgarla 3/3, 3–11 cm);
-   görev içi eğim tahmini iyileştirilecek (oturma süresi / sürekli ortalama).
+2. **Rüzgar telafisi:** tamamlandı (K-18, K-26): drone rüzgarı kendi eğiminden ölçerek 25 m'de 5–6 m/s rüzgarda 9/9 tavana.
 3. **50 m ve 75 m bırakma:** tamamlandı (K-25): tavana 3/3 ve 3/3, rüzgarsız.
 4. **Hedef filtresi:** görevde `--hedef araba | insan | ikisi` — kod ve testler hazır (K-23), simülasyon testi bekliyor.
 5. **Haritadan görev seçme:** haritanın üstten görüntüsü üzerinde arama alanı, nokta ve teslimat

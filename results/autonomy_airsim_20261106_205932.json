@@ -1,0 +1,94 @@
+{
+  "backend": "airsim",
+  "ruzgar": "4,-4",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "irtifa_m": 25.0,
+  "birakma_irtifa_m": null,
+  "mod": "roof",
+  "paket_fizigi": "gercekci",
+  "ruzgar_telafi": "egim",
+  "sure_s": 575.8,
+  "inis_hatasi_m": 2.71,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": -3.46,
+      "e": -22.73,
+      "guven": 0.54,
+      "isaretci": null,
+      "zaman_s": 176.3,
+      "kamera_hedef_ne_m": [
+        6.211,
+        -6.272
+      ],
+      "ruzgar_tahmini_ne": [
+        3.96,
+        -3.96
+      ],
+      "telafi_kaydirma_ne_m": [
+        -6.54,
+        6.53
+      ],
+      "birakma_irtifa_m": 25.79,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2289",
+      "merkeze_m": 0.13,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.13 m)"
+    },
+    {
+      "no": 2,
+      "n": -41.6,
+      "e": -19.39,
+      "guven": 0.72,
+      "isaretci": null,
+      "zaman_s": 336.8,
+      "kamera_hedef_ne_m": [
+        6.132,
+        -6.424
+      ],
+      "ruzgar_tahmini_ne": [
+        3.95,
+        -4.07
+      ],
+      "telafi_kaydirma_ne_m": [
+        -6.48,
+        6.67
+      ],
+      "birakma_irtifa_m": 25.76,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2296",
+      "merkeze_m": 0.19,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.19 m)"
+    },
+    {
+      "no": 3,
+      "n": 23.19,
+      "e": -12.65,
+      "guven": 0.67,
+      "isaretci": null,
+      "zaman_s": 511.6,
+      "kamera_hedef_ne_m": [
+        6.163,
+        -6.431
+      ],
+      "ruzgar_tahmini_ne": [
+        3.97,
+        -4.07
+      ],
+      "telafi_kaydirma_ne_m": [
+        -6.51,
+        6.67
+      ],
+      "birakma_irtifa_m": 25.63,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2288",
+      "merkeze_m": 0.21,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.21 m)"
+    }
+  ]
+}

@@ -96,6 +96,134 @@ def wind_from_tilt(roll, pitch, yaw, k_d):
     return -n / h * v, -e / h * v
 
 
+def tilt_feature(roll, pitch, yaw):
+    """Eğimden 'ham rüzgar' vektörü u (rüzgar yönünde, büyüklüğü sqrt(tan(eğim))).
+    Tek katsayılı modelde rüzgar = u / sqrt(k); yöne bağlı modelde rüzgar = M @ u."""
+    n, e, tilt = tilt_vector_ne(roll, pitch, yaw)
+    h = math.hypot(n, e)
+    if h < 1e-6 or tilt < 1e-4:
+        return 0.0, 0.0
+    m = math.sqrt(math.tan(tilt))
+    return -n / h * m, -e / h * m
+
+
+def wind_from_tilt_matrix(roll, pitch, yaw, M):
+    """Yöne bağlı kalibrasyonla rüzgar: (wn, we) = M @ u. M 2x2 (kalibrasyonla bulunur).
+    Drone'un eğilme tepkisi yöne göre farklıysa (gövde şekli, kontrolcü) tek katsayı çapraz
+    rüzgarda ~0.5 m/s ve ~10° sapıyordu (2026-11-06)."""
+    un, ue = tilt_feature(roll, pitch, yaw)
+    return M[0][0] * un + M[0][1] * ue, M[1][0] * un + M[1][1] * ue
+
+
+def fit_wind_matrix(samples):
+    """samples: [((un, ue), (wn, we)), ...] -> en küçük kareler 2x2 M (rüzgar = M @ u)."""
+    import numpy as np
+    U = np.array([s[0] for s in samples], float)
+    W = np.array([s[1] for s in samples], float)
+    X, *_ = np.linalg.lstsq(U, W, rcond=None)      # U @ X = W  ->  M = X^T
+    return X.T.tolist()
+
+
 def calibrate_k(tilt_rad, wind_speed):
     """Bilinen rüzgar hızında ölçülen eğimden k_d (tan(eğim) = k_d v^2)."""
     return math.tan(tilt_rad) / (wind_speed ** 2)
+
+
+# ---- açıya bağlı kalibrasyon (X gövde: 90°'de bir tekrarlayan tepki) ----------------------------------
+# Ölçüm (2026-11-06, AirSim): drone doğu/kuzey rüzgarında 5 m/s'de ~1.0°, çapraz (45°) rüzgarda ~0.7° eğiliyor.
+# Tek katsayı ve 2x2 matris (elips) bunu temsil edemez. Model, θ = rüzgarın GÖVDEYE göre yönü:
+#   δ(θe)  = d0 + dc·cos4θe + ds·sin4θe          gerçek yön θ = eğimden çıkan yön θe + δ(θe)
+#   k(θ)   = c0 + c4·cos4θ + s4·sin4θ            tan(eğim) = k(θ)·v²   (gerçek yönde)
+
+def _harm_rows(thetas):
+    import numpy as np
+    t = np.asarray(thetas, float)
+    return np.column_stack([np.ones_like(t), np.cos(4 * t), np.sin(4 * t)])
+
+
+def _wrap(a):
+    return math.atan2(math.sin(a), math.cos(a))
+
+
+def fit_wind_harmonic(rows):
+    """rows: [(roll, pitch, yaw, wn, we), ...] bilinen rüzgarlarda ortalama yönelim -> parametre sözlüğü."""
+    import numpy as np
+    th_t, ks, deltas = [], [], []
+    for r, p, y, wn, we in rows:
+        n, e, tilt = tilt_vector_ne(r, p, y)
+        th_tilt = _wrap(math.atan2(-e, -n) - y)            # eğimden çıkan rüzgar yönü, gövdeye göre
+        th_true = _wrap(math.atan2(we, wn) - y)
+        th_t.append(th_tilt)
+        ks.append(math.tan(tilt) / (wn * wn + we * we))
+        deltas.append(_wrap(th_true - th_tilt))
+    cd, *_ = np.linalg.lstsq(_harm_rows(th_t), np.array(deltas), rcond=None)        # δ: gözlenen yöne göre
+    th_true = [_wrap(t + d) for t, d in zip(th_t, deltas)]
+    ck, *_ = np.linalg.lstsq(_harm_rows(th_true), np.array(ks), rcond=None)         # k: gerçek yöne göre
+    return {"k": [float(x) for x in ck], "d": [float(x) for x in cd]}
+
+
+def wind_from_tilt_harmonic(roll, pitch, yaw, prm):
+    """Açıya bağlı kalibrasyonla rüzgar (wn, we)."""
+    n, e, tilt = tilt_vector_ne(roll, pitch, yaw)
+    if math.hypot(n, e) < 1e-6 or tilt < 1e-4:
+        return 0.0, 0.0
+    th = _wrap(math.atan2(-e, -n) - yaw)
+    th += float(sum(a * b for a, b in zip(prm["d"], _harm_rows([th])[0])))         # önce yönü düzelt
+    k = max(1e-6, float(sum(a * b for a, b in zip(prm["k"], _harm_rows([th])[0]))))  # sonra o yöndeki k
+    v = math.sqrt(math.tan(tilt) / k)
+    return v * math.cos(th + yaw), v * math.sin(th + yaw)
+
+
+# ---- tablo (look-up) kalibrasyonu: sık ölçüm + doğrusal ara değer --------------------------------------
+# Kalibrasyon (2026-11-06) sapmanın 180°'de bir tekrarladığını ama düzgün olmadığını gösterdi (60°: -14°,
+# 90°: +6°). Harmonik model ölçüm aralarında yanlış tahmin etti (315°'de ~27° hata, 0/3 isabet). Tablo:
+# gövde açısına göre (θe, eğimden çıkan yön) sapma δ ve katsayı k; ara açılar komşulardan doğrusal.
+
+def fit_wind_lut(rows, period=180.0):
+    """rows: [(roll, pitch, yaw, wn, we), ...] -> {"period", "theta_e" (derece, artan), "delta" (derece), "k"}."""
+    pts = []
+    for r, p, y, wn, we in rows:
+        n, e, tilt = tilt_vector_ne(r, p, y)
+        th_e = math.degrees(_wrap(math.atan2(-e, -n) - y)) % period
+        th_t = math.degrees(_wrap(math.atan2(we, wn) - y))
+        th_obs = math.degrees(_wrap(math.atan2(-e, -n) - y))
+        delta = (th_t - th_obs + 180.0) % 360.0 - 180.0
+        pts.append((th_e, delta, math.tan(tilt) / (wn * wn + we * we)))
+    pts.sort()
+    merged = []                                     # aynı açıdaki ölçümleri (ör. 5 ve 8 m/s) ortala
+    for th, dl, k in pts:
+        if merged and abs(th - merged[-1][0]) < 1.0:
+            m = merged[-1]
+            c = m[3] + 1
+            merged[-1] = ((m[0] * m[3] + th) / c, (m[1] * m[3] + dl) / c, (m[2] * m[3] + k) / c, c)
+        else:
+            merged.append((th, dl, k, 1))
+    return {"period": period, "theta_e": [m[0] for m in merged], "delta": [m[1] for m in merged],
+            "k": [m[2] for m in merged]}
+
+
+def _lut_interp(lut, th):
+    P = lut["period"]
+    xs, n = lut["theta_e"], len(lut["theta_e"])
+    th %= P
+    for i in range(n):
+        x0, x1 = xs[i - 1], xs[i]
+        lo = x0 - P if i == 0 else x0               # dairesel: son nokta ilk noktaya bağlanır
+        if lo <= th <= x1 or (i == 0 and th >= x0):
+            t_ = th if th <= x1 else th - P
+            w = (t_ - lo) / (x1 - lo) if x1 != lo else 0.0
+            return ((1 - w) * lut["delta"][i - 1] + w * lut["delta"][i],
+                    (1 - w) * lut["k"][i - 1] + w * lut["k"][i])
+    return lut["delta"][-1], lut["k"][-1]
+
+
+def wind_from_tilt_lut(roll, pitch, yaw, lut):
+    """Tablo kalibrasyonuyla rüzgar (wn, we)."""
+    n, e, tilt = tilt_vector_ne(roll, pitch, yaw)
+    if math.hypot(n, e) < 1e-6 or tilt < 1e-4:
+        return 0.0, 0.0
+    th_obs = math.degrees(_wrap(math.atan2(-e, -n) - yaw))
+    delta, k = _lut_interp(lut, th_obs)
+    th = math.radians(th_obs + delta) + yaw
+    v = math.sqrt(math.tan(tilt) / max(k, 1e-6))
+    return v * math.cos(th), v * math.sin(th)

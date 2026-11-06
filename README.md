@@ -39,9 +39,9 @@ Real-drone guide: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md) · design decisio
 | Car detector trained **only on simulation**, tested on real drone images (VisDrone) | mAP50 **0.02**: sim-only does not transfer |
 | Same detector trained on **sim + real data** | cars mAP50 **0.89** on real images, 0.88 in sim |
 | Person detection after adding 5 biomes, 32 posed people and real SAR data (HERIDAL) | sim **0.19 → 0.56**, HERIDAL **0.26 → 0.68**, VisDrone 0.59 → 0.62 |
-| **Wind:** 5 m/s crosswind, drop onto the roof from 25 m with drag + wind physics | no compensation **0/3** (5.9–8.2 m off); true wind **3/3, 3–11 cm**; wind estimated from the drone's own tilt: **3/3** in an easterly wind (0.8–1.4 m), 1/3 in a diagonal wind (direction-dependent calibration next) |
+| **Wind:** 5–6 m/s from three directions, drop onto the roof from 25 m with drag + wind physics; the drone measures the wind **from its own tilt** (36-direction look-up calibration) | **9/9 roof hits**, 3–90 cm from the centre; without compensation 0/3 (6–8 m off) |
 | Negative test: 40 % of drop-zone markers removed | **0** deliveries to unmarked cars |
-| Simulator-free tests (fake vehicle, closed loop) | **53** tests, ~1.5 s |
+| Simulator-free tests (fake vehicle, closed loop) | **56** tests, ~2 s |
 
 "Hit" means the package's **first contact** point is on the target car's top-down footprint (another car, a tree
 or the ground are counted separately). Full results table: [README.tr.md](README.tr.md#sonuçlar-şimdiye-kadar).
@@ -61,6 +61,10 @@ or the ground are counted separately). Full results table: [README.tr.md](README
 - **Decompose the error before fixing it.** The 25 m drop error looked like a constant ~0.55 m bias. Logging the
   drone's offset and the fall drift separately showed it was all alignment (30 cm tolerance, releasing before
   fully stopped); an 8-frame average with a 12 cm tolerance brought it to 4.8 cm.
+- **Measure the pattern before choosing the model.** Wind from tilt with one coefficient worked head-on but
+  missed diagonal winds. A 2×2 matrix and a smooth 4θ harmonic both failed; the calibration data showed a
+  repeatable but sharp 180°-periodic deviation (−14° at 60°, +6° at 90°). A 36-direction look-up table cut the
+  error from 0.84 to 0.08 m/s and took roof hits in diagonal wind from 0/3 to 3/3.
 - **Test the measurement code too.** Unreal updates object poses at ~45 Hz; polling faster returned repeated
   poses that the impact detector read as "velocity zero = impact" mid-fall. Impact speed from a single interval
   was also ~30 % too high. Both are now unit-tested.
@@ -117,7 +121,7 @@ CLI flags and log messages are in Turkish (`teslimat` = deliveries, `irtifa` = a
 - [x] Roof drop with fine alignment (25 m: ~10 cm from the roof centre)
 - [x] Wind compensation math validated in sim (true wind: 3/3 roof hits in 5 m/s wind)
 - [x] In-flight wind estimate from tilt (easterly 5 m/s: 3/3 roof hits)
-- [ ] Direction-dependent wind calibration (diagonal wind: 1/3)
+- [x] Direction-dependent wind calibration (look-up table): 9/9 roof hits in 5–6 m/s wind from 3 directions
 - [x] Drops from 50 m (3/3, 3–11 cm) and 75 m (3/3, 5–23 cm)
 - [x] Target filter `--hedef araba|insan|ikisi` and mixed mission (cars → roof, people → aid ≥ 5 m away); person check before every car drop (offline-tested, sim test pending)
 - [ ] Map-based mission planning UI

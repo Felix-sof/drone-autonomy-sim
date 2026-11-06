@@ -43,7 +43,7 @@ FINE_TOL_M = 0.12     # bırakmadan önce ince hizalama: ortalama sapma bundan k
 FINE_FRAMES = 8       # ince hizalamada ortalaması alınan kare sayısı
 RELEASE_BIAS_NE = (0.0, 0.0)   # ölçülen sabit sapma telafisi (m): drone işaretçiye göre bu kadar
                                # kaydırılmış konumda bırakır (mission.json "release_bias_ne_m")
-WIND_COMP = None      # rüzgar telafisi (isteğe bağlı): None | ("known", (wn, we)) | ("tilt", k_d)
+WIND_COMP = None      # rüzgar telafisi (isteğe bağlı): None | ("known", (wn, we)) | ("tilt", k_d) | ("tilt_matrix", M)
                       # sadece havada dururken, işaretli teslimat noktasına bırakmada kullanılır
 DESCENT_SPEED = 1.5   # m/s, bırakma için alçalma hızı
 PERSON_CLEAR_M = 5.0  # alçalırken bırakma noktasına bu kadar yakın kişi görülürse bırakılmaz
@@ -201,7 +201,14 @@ def estimate_wind(vehicle, settle_s=None, avg_s=None):
         ys.append(y)
         time.sleep(0.05)
     yaw = math.atan2(sum(map(math.sin, ys)), sum(map(math.cos, ys)))   # açıların doğru ortalaması
-    return ballistics.wind_from_tilt(sum(rs) / len(rs), sum(ps) / len(ps), yaw, val)
+    r, p = sum(rs) / len(rs), sum(ps) / len(ps)
+    if kind == "tilt_matrix":                    # 2x2 matris (elips): X gövdede yetersiz kaldı
+        return ballistics.wind_from_tilt_matrix(r, p, yaw, val)
+    if kind == "tilt_lut":                       # tablo kalibrasyonu (wind_calibrate.py --tablo)
+        return ballistics.wind_from_tilt_lut(r, p, yaw, val)
+    if kind == "tilt_harmonic":                  # açıya bağlı kalibrasyon (wind_calibrate.py --matris)
+        return ballistics.wind_from_tilt_harmonic(r, p, yaw, val)
+    return ballistics.wind_from_tilt(r, p, yaw, val)
 
 
 def fine_align_marker(vehicle, grab, marker_id, tries=3, target=None):
