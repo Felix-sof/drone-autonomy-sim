@@ -104,9 +104,11 @@ def ground_estimates(vehicle, img, boxes):
     return out
 
 
-def align_over_target(vehicle, grab, detector, timeout=40, show=True, tol=ALIGN_TOL_M, gain=0.5, target=(0.0, 0.0)):
+def align_over_target(vehicle, grab, detector, timeout=40, show=True, tol=ALIGN_TOL_M, gain=0.5, target=(0.0, 0.0),
+                      start_rel=None):
     """En yakın arabaya kilitlenip (takip) tam üstüne gelene kadar NED hız komutuyla kayar.
-    target: arabanın drone'a göre olması gereken yeri (Δn, Δe); rüzgar telafisinde sıfırdan farklı."""
+    target: arabanın drone'a göre olması gereken yeri (Δn, Δe); rüzgar telafisinde sıfırdan farklı.
+    start_rel: takibin başlayacağı yer (arabanın drone'a göre bilinen konumu); yoksa görüntü merkezi."""
     t0 = time.time()
     track, misses, good = None, 0, 0
     vn_f = ve_f = 0.0  # yumuşatılmış komut
@@ -115,10 +117,15 @@ def align_over_target(vehicle, grab, detector, timeout=40, show=True, tol=ALIGN_
         roll, pitch, yaw = vehicle.attitude()
         h, w = img.shape[:2]
         boxes = detector.detect(img, conf=TRACK_CONF)
-        ref = track if track is not None else (w / 2, h / 2)
+        if track is not None:
+            ref = track
+        elif start_rel is not None:   # bilinen hedefin beklenen pikseli: merkezdeki başka arabaya kilitlenme
+            ref = expected_pixel(img.shape, start_rel, max(vehicle.height_agl(), 1.0))
+        else:
+            ref = (w / 2, h / 2)
         best = min(boxes, key=lambda b: math.dist(box_center(b), ref), default=None)
-        if best is not None and track is not None and math.dist(box_center(best), track) > 0.12 * w:
-            best = None  # başka arabaya sıçrama
+        if best is not None and (track is not None or start_rel is not None) and                 math.dist(box_center(best), ref) > 0.12 * w:
+            best = None  # başka arabaya sıçrama (ya da beklenen yerde araba yok); ilk kilitlenme serbest
         if best is None:
             misses += 1
             vehicle.hover()
@@ -172,7 +179,8 @@ def marker_offset_avg(vehicle, grab, marker_id, n=FINE_FRAMES):
 
 
 WIND_SETTLE_S = 5.0   # rüzgar tahmini: manevradan sonra oturma süresi (kalan eğim tahmini saptırıyor)
-WIND_AVG_S = 4.0      # eğimin ortalandığı süre (kalibrasyonla aynı: wind_calibrate.py)
+WIND_AVG_S = 6.0      # eğimin ortalandığı süre; 75 m'de 0.3 m/s tahmin hatası ~1.8 m kayma (araba 2 m geniş)
+WIND_HISTORY = []     # görev içindeki ölçümler: rüzgar görev boyunca sabit kabul edilir, ortalaması kullanılır
 
 
 def estimate_wind(vehicle, settle_s=None, avg_s=None):
@@ -205,7 +213,9 @@ def estimate_wind(vehicle, settle_s=None, avg_s=None):
     if kind == "tilt_matrix":                    # 2x2 matris (elips): X gövdede yetersiz kaldı
         return ballistics.wind_from_tilt_matrix(r, p, yaw, val)
     if kind == "tilt_lut":                       # tablo kalibrasyonu (wind_calibrate.py --tablo)
-        return ballistics.wind_from_tilt_lut(r, p, yaw, val)
+        WIND_HISTORY.append(ballistics.wind_from_tilt_lut(r, p, yaw, val))
+        return (sum(w[0] for w in WIND_HISTORY) / len(WIND_HISTORY),
+                sum(w[1] for w in WIND_HISTORY) / len(WIND_HISTORY))
     if kind == "tilt_harmonic":                  # açıya bağlı kalibrasyon (wind_calibrate.py --matris)
         return ballistics.wind_from_tilt_harmonic(r, p, yaw, val)
     return ballistics.wind_from_tilt(r, p, yaw, val)
@@ -356,16 +366,22 @@ def target_offset_avg(vehicle, grab, detector, n=FINE_FRAMES, expect=(0.0, 0.0))
 def fine_align_target(vehicle, grab, detector, tries=3, target=(0.0, 0.0)):
     """Tavan modunda bırakmadan önce: arabanın merkezini FINE_FRAMES ortalamasıyla ölç, FINE_TOL_M'den
     uzaksa sıkı toleransla tekrar hizalan. Son ölçüm ya da None."""
-    last = None
+    last, car = None, None   # car: hedef arabanın DÜNYADAKİ konumu (her ölçümde güncellenir)
     for _ in range(tries):
         vehicle.wait_still(max_speed=0.05)
-        # ilk ölçümde araba merkezde (gevşek hizalamadan), sonrakilerde hedef kaydırmasının olduğu yerde
-        last = target_offset_avg(vehicle, grab, detector, expect=(0.0, 0.0) if last is None else target)
+        n0, e0, _ = vehicle.position()
+        # arabayı bilinen dünya konumunda ara: drone hizalamayı yarıda bırakmış olsa da (75 m'de 30 m kaydırma
+        # 40 s'ye sığmayabiliyor) beklenen yer doğru kalır; ilk ölçümde araba drone'un altında
+        expect = (0.0, 0.0) if car is None else (car[0] - n0, car[1] - e0)
+        last = target_offset_avg(vehicle, grab, detector, expect=expect)
         if last is None:
             return None
+        car = (n0 + last[0], e0 + last[1])
         if math.hypot(last[0] - target[0], last[1] - target[1]) < FINE_TOL_M:
             return last
-        align_over_target(vehicle, grab, detector, tol=FINE_TOL_M * 0.8, gain=0.4, target=target)
+        far = math.hypot(last[0] - target[0], last[1] - target[1])
+        align_over_target(vehicle, grab, detector, tol=FINE_TOL_M * 0.8, gain=0.4, target=target,
+                          start_rel=(last[0], last[1]), timeout=max(40.0, 3.0 * far))
     return last
 
 
@@ -405,6 +421,7 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
     """
     route = lawnmower(area, lane_spacing(alt), alt)
     log(f"Arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
+    WIND_HISTORY.clear()
     visited, dropped, results = [], [], []
     served_ids = set()  # teslimat yapılan işaretçi numaraları
     approaches = 0
@@ -445,6 +462,9 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
                 continue
             vehicle.wait_still(max_speed=0.05)
             n, e, _ = vehicle.position()
+            car_n, car_e = n, e     # drone şu an hedefin tam üstünde: hedefin konumu (rüzgar kaydırmasından önce)
+            log(f"  hedef konumu ({car_n:.1f}, {car_e:.1f}); daha önce teslim alanlar: "
+                + (", ".join(f"({a:.1f}, {b:.1f})" for a, b in dropped) or "yok"))
             visited.append((n, e))  # tahmin ile hizalanılan yer farklı olabilir: ikisi de işaretli
             if mode == "roof" and any(math.hypot(n - dn, e - de) < NEW_TARGET_M for dn, de in dropped):
                 log("  bu araba zaten teslim aldı, bırakılmadı; aramaya devam")
@@ -518,7 +538,10 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
                 if vehicle.height_agl() < alt - 0.5:
                     vehicle.goto(n, e, -alt, 3.0)
                 continue
-            dropped.append((n, e))
+            # teslim kaydı HEDEFİN konumuyla: rüzgar telafisinde drone hedeften 20-30 m uzakta bırakıyor;
+            # drone konumu kaydedilince aynı araba yeniden hedef sanılıyordu (2026-11-06, 50/75 m rüzgarlı test)
+            dropped.append((car_n, car_e))
+            visited.append((car_n, car_e))
             handle = payload.release()
             rec = {"no": len(results) + 1, "n": round(n, 2), "e": round(e, 2), "guven": round(conf, 2),
                    "isaretci": marker_id, "zaman_s": round(time.time() - t_start, 1)}

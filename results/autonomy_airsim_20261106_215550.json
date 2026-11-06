@@ -1,0 +1,94 @@
+{
+  "backend": "airsim",
+  "ruzgar": "0,5",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "irtifa_m": 50.0,
+  "birakma_irtifa_m": null,
+  "mod": "roof",
+  "paket_fizigi": "gercekci",
+  "ruzgar_telafi": "egim",
+  "sure_s": 576.4,
+  "inis_hatasi_m": 2.46,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": -8.24,
+      "e": 18.93,
+      "guven": 0.78,
+      "isaretci": null,
+      "zaman_s": 182.2,
+      "kamera_hedef_ne_m": [
+        -0.492,
+        18.455
+      ],
+      "ruzgar_tahmini_ne": [
+        -0.1,
+        5.02
+      ],
+      "telafi_kaydirma_ne_m": [
+        0.39,
+        -18.81
+      ],
+      "birakma_irtifa_m": 50.98,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2292",
+      "merkeze_m": 0.44,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.44 m)"
+    },
+    {
+      "no": 2,
+      "n": -33.12,
+      "e": -41.12,
+      "guven": 0.77,
+      "isaretci": null,
+      "zaman_s": 328.9,
+      "kamera_hedef_ne_m": [
+        1.002,
+        17.79
+      ],
+      "ruzgar_tahmini_ne": [
+        0.3,
+        4.89
+      ],
+      "telafi_kaydirma_ne_m": [
+        -1.11,
+        -18.2
+      ],
+      "birakma_irtifa_m": 50.82,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2290",
+      "merkeze_m": 1.09,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 1.09 m)"
+    },
+    {
+      "no": 3,
+      "n": -31.69,
+      "e": -41.86,
+      "guven": 0.68,
+      "isaretci": null,
+      "zaman_s": 494.3,
+      "kamera_hedef_ne_m": [
+        -0.473,
+        18.345
+      ],
+      "ruzgar_tahmini_ne": [
+        -0.1,
+        5.02
+      ],
+      "telafi_kaydirma_ne_m": [
+        0.39,
+        -18.78
+      ],
+      "birakma_irtifa_m": 51.09,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2290",
+      "merkeze_m": 0.49,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.49 m)"
+    }
+  ]
+}

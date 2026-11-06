@@ -1,0 +1,42 @@
+{
+  "backend": "airsim",
+  "ruzgar": "0,5",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "irtifa_m": 75.0,
+  "birakma_irtifa_m": null,
+  "mod": "roof",
+  "paket_fizigi": "gercekci",
+  "ruzgar_telafi": "egim",
+  "sure_s": 222.0,
+  "inis_hatasi_m": 1.9,
+  "inis_isaretci": true,
+  "iptal": "geofence dışına çıkıldı (2, -62)",
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": 2.34,
+      "e": -62.24,
+      "guven": 0.7,
+      "isaretci": null,
+      "zaman_s": 123.0,
+      "kamera_hedef_ne_m": [
+        1.235,
+        27.763
+      ],
+      "ruzgar_tahmini_ne": [
+        0.2,
+        4.72
+      ],
+      "telafi_kaydirma_ne_m": [
+        -1.17,
+        -27.86
+      ],
+      "birakma_irtifa_m": 75.64,
+      "isabet": false,
+      "ilk_temas": "yer",
+      "araba": "StaticMeshActor_2293",
+      "merkeze_m": 2.31,
+      "sonuc_metni": "yere düştü ✘ (merkeze 2.31 m)"
+    }
+  ]
+}

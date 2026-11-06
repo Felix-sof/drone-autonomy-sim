@@ -292,3 +292,26 @@ def test_lawnmower_full_coverage_at_altitude(alt):
     half = alt                                      # 90° görüş: yerde ±irtifa genişlik
     assert lanes[0] - half <= area[2] and lanes[-1] + half >= area[3]       # kenarlar kaplanıyor
     assert all(b - a <= 2 * half for a, b in zip(lanes, lanes[1:]))         # şeritler arasında boşluk yok
+
+
+def test_fine_align_does_not_switch_to_car_under_offset_position(monkeypatch):
+    # 75 m, rüzgar kaydırması 30 m doğu: drone hedefin 30 m batısına gidecek; orada başka bir araba var.
+    # İkinci hizalama turu takibe görüntü merkezinden başlarsa o arabaya kilitlenir (2026-11-06 hatası).
+    v = FakeVehicle(0, 0, alt=75)
+    world = FakeWorld(v, [(0.0, 0.0, 0), (0.5, -30.0, 0)])     # hedef + kaydırma noktasındaki başka araba
+    real_align = autonomy.align_over_target
+    calls = {"n": 0}
+
+    def slow_first_align(*a, **kw):          # gerçekteki gibi: ilk tur 30 m'yi süresi içinde bitiremez
+        calls["n"] += 1
+        if calls["n"] == 1:
+            for _ in range(40):              # ~yolun yarısı: drone ile araba arasında başka araba var
+                v.velocity_ned(0.0, -1.5, 0.0)
+                world.grab()
+            v.hover()
+            return False
+        return real_align(*a, **kw)
+    monkeypatch.setattr(autonomy, "align_over_target", slow_first_align)
+    fine = autonomy.fine_align_target(v, world.grab, world, target=(0.0, 30.0))
+    assert fine is not None
+    assert abs(v.p[0]) < 0.5 and abs(v.p[1] + 30.0) < 0.5      # hedefin 30 m batısı, başka arabaya göre değil

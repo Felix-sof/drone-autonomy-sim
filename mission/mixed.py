@@ -34,6 +34,7 @@ def _car_drop(vehicle, grab, detector, payload, alt, log, approve=None):
     if not align_over_target(vehicle, grab, detector):
         log("  yaklaşınca araba kayboldu, aramaya devam")
         return None
+    car_n, car_e, _ = vehicle.position()          # hedefin konumu (rüzgar kaydırmasından önce)
     target, wind, off = (0.0, 0.0), None, (0.0, 0.0)
     if autonomy.WIND_COMP is not None:
         import ballistics
@@ -51,7 +52,8 @@ def _car_drop(vehicle, grab, detector, payload, alt, log, approve=None):
     if approve is not None and not approve(grab(), "araba tavanına teslimat"):
         log("  pilot onay vermedi, BIRAKILMADI")
         return None
-    rec = {"hedef_turu": "araba", "kamera_hedef_ne_m": [round(fine[0], 3), round(fine[1], 3)]}
+    rec = {"hedef_turu": "araba", "kamera_hedef_ne_m": [round(fine[0], 3), round(fine[1], 3)],
+           "_hedef_ne": (car_n, car_e)}
     if wind is not None:
         rec["ruzgar_tahmini_ne"] = [round(wind[0], 2), round(wind[1], 2)]
     rec["_handle"] = payload.release()
@@ -89,6 +91,7 @@ def mixed_mission(vehicle, grab, detector, payload, area, alt=25.0, deliveries=3
     """on_drop(handle, tür) -> dict; tür 'araba' ya da 'kisi'. (sonuçlar, işaretçiyle_indi, süre, iptal) döner."""
     route = lawnmower(area, autonomy.lane_spacing(alt), alt)
     log(f"Karma arama (araba + kişi): {len(route) // 2} şerit, irtifa {alt:.0f} m")
+    autonomy.WIND_HISTORY.clear()
     visited, results = [], []
     t_start, abort_reason, approaches, idx = time.time(), None, 0, 0
     vehicle.arm_takeoff(alt)
@@ -124,6 +127,8 @@ def mixed_mission(vehicle, grab, detector, payload, area, alt=25.0, deliveries=3
             if rec is None:
                 continue
             handle = rec.pop("_handle")
+            if "_hedef_ne" in rec:                  # rüzgar kaydırmasında drone hedeften uzakta: hedefi işaretle
+                visited.append(rec.pop("_hedef_ne"))
             rec.update({"no": len(results) + 1, "n": round(n, 2), "e": round(e, 2), "guven": round(conf, 2),
                         "zaman_s": round(time.time() - t_start, 1)})
             if on_drop is not None:

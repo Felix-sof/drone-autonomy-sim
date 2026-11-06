@@ -1,0 +1,94 @@
+{
+  "backend": "airsim",
+  "ruzgar": "-3,4",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "irtifa_m": 75.0,
+  "birakma_irtifa_m": null,
+  "mod": "roof",
+  "paket_fizigi": "gercekci",
+  "ruzgar_telafi": "egim",
+  "sure_s": 654.2,
+  "inis_hatasi_m": 2.13,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": 51.06,
+      "e": -41.62,
+      "guven": 0.72,
+      "isaretci": null,
+      "zaman_s": 199.6,
+      "kamera_hedef_ne_m": [
+        -16.864,
+        24.135
+      ],
+      "ruzgar_tahmini_ne": [
+        -2.89,
+        4.12
+      ],
+      "telafi_kaydirma_ne_m": [
+        17.13,
+        -24.39
+      ],
+      "birakma_irtifa_m": 75.56,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2295",
+      "merkeze_m": 1.04,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 1.04 m)"
+    },
+    {
+      "no": 2,
+      "n": 51.63,
+      "e": -41.6,
+      "guven": 0.74,
+      "isaretci": null,
+      "zaman_s": 388.1,
+      "kamera_hedef_ne_m": [
+        -18.947,
+        24.102
+      ],
+      "ruzgar_tahmini_ne": [
+        -2.95,
+        4.07
+      ],
+      "telafi_kaydirma_ne_m": [
+        17.55,
+        -24.2
+      ],
+      "birakma_irtifa_m": 75.97,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2295",
+      "merkeze_m": 0.82,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.82 m)"
+    },
+    {
+      "no": 3,
+      "n": 52.23,
+      "e": -39.86,
+      "guven": 0.59,
+      "isaretci": null,
+      "zaman_s": 554.4,
+      "kamera_hedef_ne_m": [
+        -17.936,
+        22.329
+      ],
+      "ruzgar_tahmini_ne": [
+        -3.08,
+        3.8
+      ],
+      "telafi_kaydirma_ne_m": [
+        18.27,
+        -22.56
+      ],
+      "birakma_irtifa_m": 75.83,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2295",
+      "merkeze_m": 1.16,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 1.16 m)"
+    }
+  ]
+}

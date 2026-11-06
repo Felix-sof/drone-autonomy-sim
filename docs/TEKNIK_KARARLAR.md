@@ -44,6 +44,7 @@ Kararlar kronolojik sırada. Yeni karar verildikçe sona eklenir; geçersiz olan
 | K-24 | YOLO'yu ısıtmak + FP16 | Unreal ile GPU paylaşımında kilitlenme bitti |
 | K-25 | İrtifaya göre tam kaplayan tarama | 50 m ve 75 m'den tavana 3/3 |
 | K-26 | Rüzgar tahmini için tablo kalibrasyonu | Çapraz rüzgarda 0/3 → 3/3; rüzgarda 9/9 |
+| K-27 | Rüzgarlı yüksek irtifa: hedefi dünya konumunda takip; ısı/kare hızı uyarısı | 30 m kaydırmada yanlış arabaya kilitlenme bitti |
 
 ---
 
@@ -482,6 +483,31 @@ Bir-dışarıda doğrulama: tek katsayı ort. 0.84 / en kötü 1.21 m/s → **ta
 
 **Bedel / gerçek drone:** Desen bu drone'a ve kontrolcüye özgü; gerçek drone için aynı ölçüm (bilinen rüzgarda,
 36 yön) tekrarlanmalı. Ani rüzgar darbeleri ve düşüş sırasında değişen rüzgar bu yöntemin dışında.
+
+
+## K-27 · Rüzgarlı yüksek irtifa: hedefi dünya konumunda takip etmek; simülasyonun ısıya duyarlılığı
+
+**İlk tur (50 m ve 75 m, 5–6 m/s):** bırakılan 13 paketin 13'ü bir arabanın tavanına; bırakma noktası rüzgara karşı
+18–30 m kaydırıldı. Ama paketler aynı arabalara tekrar gitti.
+
+**Hata 1 — teslim kaydı:** rüzgar telafisinde drone hedefin 20–30 m yanında bırakıyor; "teslim edildi" kaydı drone'un
+konumuyla tutulunca aynı araba yeni hedef sanıldı. → Kayıt hedefin konumuyla.
+
+**Hata 2 — yanlış arabaya kilitlenme:** 75 m'de 30 m kaydırma ilk hizalama süresine (40 s) sığmayınca ikinci tur takibi
+görüntü merkezinden başlattı; merkezde başka bir araba vardı. Tam kayıtla teşhis edildi (paket 2'de drone 45 m ötedeki
+arabaya göre hizalanmıştı). → Hedefin dünya konumu her ölçümde güncellenip takip oradan başlıyor; süre kaydırmayla
+orantılı. Testle yeniden üretilip doğrulandı.
+
+**Hata 3 — tahmin gürültüsü:** 75 m'de 0.3 m/s tahmin hatası ~1.8 m kayma (araba 2 m geniş). → 6 s ölçüm, görev içi
+ölçümlerin ortalaması.
+
+**İkinci tur:** tekrar sorunu çözüldü (her paket farklı araca), ama isabet düştü (5/12). Sebep kodda değil: simülatör
+3.5 saattir açıktı, GPU 87 °C'de ısıdan kısıyordu (`SW Thermal Slowdown`), Unreal 42 → 2–8 kare/s'ye düşüyordu. AirSim'in
+kontrolcüsü kare hızına duyarlı: drone rüzgara farklı eğiliyor, serin sistemde yapılan kalibrasyon tablosu geçersizleşiyor.
+
+**Ders / sonraki adım:** Simülasyon ölçümleri kısa oturumlarda ve soğuk GPU'da yapılmalı (sıcaklık ve kare hızı kayda
+alınmalı). Gerçek PX4 sabit hızda çalıştığı için bu bir simülasyon sorunu; ama kalibrasyonun drone/kontrolcüye özgü
+olduğunu da gösteriyor.
 
 ---
 

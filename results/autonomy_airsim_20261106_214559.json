@@ -1,0 +1,94 @@
+{
+  "backend": "airsim",
+  "ruzgar": "4,-4",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "irtifa_m": 50.0,
+  "birakma_irtifa_m": null,
+  "mod": "roof",
+  "paket_fizigi": "gercekci",
+  "ruzgar_telafi": "egim",
+  "sure_s": 571.6,
+  "inis_hatasi_m": 2.81,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": -20.61,
+      "e": 52.1,
+      "guven": 0.79,
+      "isaretci": null,
+      "zaman_s": 165.5,
+      "kamera_hedef_ne_m": [
+        14.453,
+        -15.073
+      ],
+      "ruzgar_tahmini_ne": [
+        3.92,
+        -4.06
+      ],
+      "telafi_kaydirma_ne_m": [
+        -14.79,
+        15.3
+      ],
+      "birakma_irtifa_m": 50.9,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2292",
+      "merkeze_m": 0.35,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.35 m)"
+    },
+    {
+      "no": 2,
+      "n": -54.99,
+      "e": 57.0,
+      "guven": 0.76,
+      "isaretci": null,
+      "zaman_s": 329.2,
+      "kamera_hedef_ne_m": [
+        14.638,
+        -15.154
+      ],
+      "ruzgar_tahmini_ne": [
+        3.95,
+        -4.05
+      ],
+      "telafi_kaydirma_ne_m": [
+        -14.99,
+        15.34
+      ],
+      "birakma_irtifa_m": 51.27,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2295",
+      "merkeze_m": 0.39,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.39 m)"
+    },
+    {
+      "no": 3,
+      "n": -54.79,
+      "e": 57.1,
+      "guven": 0.61,
+      "isaretci": null,
+      "zaman_s": 482.4,
+      "kamera_hedef_ne_m": [
+        14.372,
+        -15.131
+      ],
+      "ruzgar_tahmini_ne": [
+        3.91,
+        -4.09
+      ],
+      "telafi_kaydirma_ne_m": [
+        -14.78,
+        15.49
+      ],
+      "birakma_irtifa_m": 51.02,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2295",
+      "merkeze_m": 0.58,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.58 m)"
+    }
+  ]
+}
