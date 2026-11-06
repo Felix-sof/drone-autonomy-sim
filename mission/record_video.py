@@ -1,6 +1,6 @@
 """Demo videosu: tek bir teslimat görevini iki kameradan kaydeder (yazısız).
 
-  bash mission/sim.sh airsim
+  bash mission/sim.sh video        # takip kamerası sadece bu modda açık
   python mission/record_video.py --model C:/UE/drone_runs/carperson3/weights/best.pt              # tavan
   python mission/record_video.py --model ... --mod dropzone                                       # teslimat noktası
 

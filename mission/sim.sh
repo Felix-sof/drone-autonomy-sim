@@ -2,6 +2,7 @@
 # Simülasyonu tek komutla başlat/durdur.
 #   bash mission/sim.sh px4      # AirSim'i PX4 moduna al, Unreal'i aç + Play, PX4 SITL'i WSL'de başlat
 #   bash mission/sim.sh airsim   # AirSim'in kendi uçuş kontrolcüsü (SimpleFlight)
+#   bash mission/sim.sh video    # airsim + takip kamerası (record_video.py için; GPU'ya ek yük)
 #   bash mission/sim.sh stop     # PX4'ü durdur, Unreal'i kapat
 #   bash mission/sim.sh px4 setup   # açarken haritayı da yeniden kur (unreal/setup_forest.py)
 # Gerekenler: WSL Ubuntu'da ~/PX4-Autopilot (v1.15.4, make px4_sitl_default), .wslconfig'te
@@ -43,9 +44,10 @@ editor_start() {   # auto modunda aç: init_unreal.py Play'i kendisi başlatır
 case "$mode" in
   stop)
     px4_stop; editor_stop; rm -f "$FLAGS/auto"; echo "durduruldu" ;;
-  airsim|px4)
+  airsim|px4|video)
     px4_stop; editor_stop
     if [ "$mode" = px4 ]; then cp "$D/airsim/settings_px4.json" "$A/settings.json"
+    elif [ "$mode" = video ]; then cp "$D/airsim/settings_video.json" "$A/settings.json"   # + takip kamerası
     else cp "$D/airsim/settings.json" "$A/settings.json"; fi
     [ "$setup" = setup ] && touch "$FLAGS/setup"
     editor_start

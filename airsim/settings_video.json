@@ -1,0 +1,61 @@
+{
+  "SettingsVersion": 2.0,
+  "SimMode": "Multirotor",
+  "ClockSpeed": 1.0,
+  "ViewMode": "SpringArmChase",
+  "Vehicles": {
+    "Drone1": {
+      "VehicleType": "SimpleFlight",
+      "AutoCreate": true,
+      "X": 0,
+      "Y": 0,
+      "Z": 0,
+      "Cameras": {
+        "bottom_cam": {
+          "X": 0.0,
+          "Y": 0.0,
+          "Z": 0.3,
+          "Pitch": -89.9,
+          "Roll": 0.0,
+          "Yaw": 0.0,
+          "CaptureSettings": [
+            {
+              "ImageType": 0,
+              "Width": 1920,
+              "Height": 1080,
+              "FOV_Degrees": 90
+            }
+          ],
+          "Gimbal": {
+            "Stabilization": 1.0,
+            "Pitch": -89.9,
+            "Roll": 0.0,
+            "Yaw": 0.0
+          }
+        },
+        "chase_cam": {
+          "X": -3.0,
+          "Y": 0.0,
+          "Z": -1.3,
+          "Pitch": -22.0,
+          "Roll": 0.0,
+          "Yaw": 0.0,
+          "CaptureSettings": [
+            {
+              "ImageType": 0,
+              "Width": 960,
+              "Height": 540,
+              "FOV_Degrees": 80
+            }
+          ],
+          "Gimbal": {
+            "Stabilization": 1.0,
+            "Pitch": -22.0,
+            "Roll": 0.0,
+            "Yaw": 0.0
+          }
+        }
+      }
+    }
+  }
+}
