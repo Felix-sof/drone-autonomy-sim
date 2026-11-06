@@ -1,0 +1,94 @@
+{
+  "backend": "airsim",
+  "ruzgar": "4,-4",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "irtifa_m": 50.0,
+  "birakma_irtifa_m": null,
+  "mod": "roof",
+  "paket_fizigi": "gercekci",
+  "ruzgar_telafi": "egim",
+  "sure_s": 690.4,
+  "inis_hatasi_m": 2.74,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": -12.28,
+      "e": -18.45,
+      "guven": 0.63,
+      "isaretci": null,
+      "zaman_s": 209.6,
+      "kamera_hedef_ne_m": [
+        14.633,
+        -14.777
+      ],
+      "ruzgar_tahmini_ne": [
+        3.93,
+        -4.0
+      ],
+      "telafi_kaydirma_ne_m": [
+        -14.88,
+        15.12
+      ],
+      "birakma_irtifa_m": 50.97,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2293",
+      "merkeze_m": 0.12,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.12 m)"
+    },
+    {
+      "no": 2,
+      "n": -42.04,
+      "e": -7.78,
+      "guven": 0.63,
+      "isaretci": null,
+      "zaman_s": 403.8,
+      "kamera_hedef_ne_m": [
+        14.537,
+        -14.645
+      ],
+      "ruzgar_tahmini_ne": [
+        3.94,
+        -4.01
+      ],
+      "telafi_kaydirma_ne_m": [
+        -14.79,
+        15.05
+      ],
+      "birakma_irtifa_m": 50.66,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2288",
+      "merkeze_m": 0.19,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.19 m)"
+    },
+    {
+      "no": 3,
+      "n": -53.5,
+      "e": 55.48,
+      "guven": 0.56,
+      "isaretci": null,
+      "zaman_s": 601.8,
+      "kamera_hedef_ne_m": [
+        14.601,
+        -14.634
+      ],
+      "ruzgar_tahmini_ne": [
+        3.95,
+        -4.0
+      ],
+      "telafi_kaydirma_ne_m": [
+        -14.8,
+        14.98
+      ],
+      "birakma_irtifa_m": 50.6,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2294",
+      "merkeze_m": 0.03,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.03 m)"
+    }
+  ]
+}
