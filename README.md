@@ -31,7 +31,7 @@ Real-drone guide: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md) · design decisio
 | What | Result |
 |---|---|
 | **Drop onto the car roof from 25 m** (default mode, fine alignment) | first contact on the target roof, **10–12 cm** from its centre |
-| **Drop onto the car roof from 50 m** | **3/3**, 3–11 cm from the roof centre; helipad landing 1 cm |
+| **Drop onto the car roof from 50 m / 75 m** | **3/3** at 3–11 cm (50 m) and **3/3** at 5–23 cm (75 m) from the roof centre; helipad landing 0–1 cm |
 | Drop onto a marked drop zone next to the car from 25 m, 3 missions × 3 packages | **9/9**, mean **4.8 cm** from the marker centre (was 0.50 m before fine alignment) |
 | Fully autonomous mission on **PX4 SITL** (MAVSDK, gimbal camera), 4 missions × 3 packages | **12/12** hits, 12 different cars, 0 false alarms; also **9/9 in 5–8 m/s wind** |
 | **Vision-only precision landing** (ArUco, tilt-compensated) | **0–1 cm** (AirSim), ~7 cm (PX4) |
@@ -118,8 +118,7 @@ CLI flags and log messages are in Turkish (`teslimat` = deliveries, `irtifa` = a
 - [x] Wind compensation math validated in sim (true wind: 3/3 roof hits in 5 m/s wind)
 - [x] In-flight wind estimate from tilt (easterly 5 m/s: 3/3 roof hits)
 - [ ] Direction-dependent wind calibration (diagonal wind: 1/3)
-- [x] Drop from 50 m (3/3, 3–11 cm)
-- [ ] Drop from 75 m
+- [x] Drops from 50 m (3/3, 3–11 cm) and 75 m (3/3, 5–23 cm)
 - [x] Target filter `--hedef araba|insan|ikisi` and mixed mission (cars → roof, people → aid ≥ 5 m away); person check before every car drop (offline-tested, sim test pending)
 - [ ] Map-based mission planning UI
 - [ ] Fixed-wing version

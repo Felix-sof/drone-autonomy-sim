@@ -443,6 +443,15 @@ yalnızca video modunda (`sim.sh video`).
 **Kanıt (50 m'den tavana, AirSim, rüzgarsız):** 3/3 isabet, merkeze **11 / 3 / 5 cm**; helipad'e iniş 1 cm; görev 212 s.
 İnce hizalama irtifadan bağımsız çalışıyor.
 
+**75 m'den tavana:** 3/3 isabet, merkeze **23 / 5 / 16 cm**; tek şeritte arama, araba güveni 0.53–0.72; helipad'e iniş
+0 cm; görev 262 s. 75 m'de bir piksel yerde ~8 cm: hata hâlâ 1–3 piksel.
+
+| İrtifa | Tavana isabet | Merkeze |
+|---|---|---|
+| 25 m | 2/2 | 10 / 12 cm |
+| 50 m | 3/3 | 11 / 3 / 5 cm |
+| 75 m | 3/3 | 23 / 5 / 16 cm |
+
 ---
 
 ## Açık konular
@@ -467,8 +476,7 @@ yalnızca video modunda (`sim.sh video`).
    tehlikeli bırakma = 0).
 2. **Rüzgar telafisi:** kalibrasyon ve karşılaştırma yapıldı (K-18): hesap doğru (bilinen rüzgarla 3/3, 3–11 cm);
    görev içi eğim tahmini iyileştirilecek (oturma süresi / sürekli ortalama).
-3. **50 m ve 75 m bırakma** (önce araçların yanındaki teslimat noktalarında; büyük işaretçi ya da iki
-   aşamalı hizalama).
+3. **50 m ve 75 m bırakma:** tamamlandı (K-25): tavana 3/3 ve 3/3, rüzgarsız.
 4. **Hedef filtresi:** görevde `--hedef araba | insan | ikisi` — kod ve testler hazır (K-23), simülasyon testi bekliyor.
 5. **Haritadan görev seçme:** haritanın üstten görüntüsü üzerinde arama alanı, nokta ve teslimat
    noktası çizen bir arayüz → görev dosyası → drone bu dosyayla uçar (gerçek drone'da da aynı dosya).
