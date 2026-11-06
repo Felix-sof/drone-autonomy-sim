@@ -40,7 +40,7 @@ Real-drone guide: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md) · design decisio
 | Person detection after adding 5 biomes, 32 posed people and real SAR data (HERIDAL) | sim **0.19 → 0.56**, HERIDAL **0.26 → 0.68**, VisDrone 0.59 → 0.62 |
 | **Wind:** 5 m/s crosswind, drop onto the roof from 25 m with drag + wind physics | no compensation **0/3** (5.9–8.2 m off); compensation with the true wind **3/3, 3–11 cm**; with wind estimated from the drone's tilt 1/3 (estimator needs longer settling, next step) |
 | Negative test: 40 % of drop-zone markers removed | **0** deliveries to unmarked cars |
-| Simulator-free tests (fake vehicle, closed loop) | **44** tests, ~1.5 s |
+| Simulator-free tests (fake vehicle, closed loop) | **48** tests, ~1.5 s |
 
 "Hit" means the package's **first contact** point is on the target car's top-down footprint (another car, a tree
 or the ground are counted separately). Full results table: [README.tr.md](README.tr.md#sonuçlar-şimdiye-kadar).
@@ -68,7 +68,7 @@ or the ground are counted separately). Full results table: [README.tr.md](README
 - Default mission: find a car, hover and release onto its **roof** from 25 m (`--mod roof`). Delivery to a
   marked drop zone next to the car is `--mod dropzone`.
 - Search-and-rescue: aid packages are dropped **at least 5 m from people** on open ground, the zone is
-  re-checked right before release, and in real-world mode **every release needs pilot approval** (silence = no).
+  re-checked right before release (car drops too: no release if anyone is within 5 m of the impact point), and in real-world mode **every release needs pilot approval** (silence = no).
 - Release-point calculation for drops from a **moving** drone (ballistic aiming) is deliberately not built,
   and payloads are never aimed at people.
 - Geofence, battery and mission-time aborts; PX4's own geofence/RTL on top.
@@ -100,6 +100,7 @@ docs/                         Real-drone guide, technical decisions log, demo vi
 bash mission/sim.sh airsim          # or: px4 (Unreal + PX4 SITL in WSL)
 python mission/run_autonomy.py --model <best.pt> --backend airsim --teslimat 3
 #   --mod roof (default) | dropzone | sar        --imgsz 1280 for SAR
+#   --hedef araba | insan | ikisi                 target filter (ikisi = cars and people in one mission)
 #   --biyom rastgele                              random biome per mission
 #   --ruzgar 6,3   --paket-fizigi gercekci   --ruzgar-telafi egim     wind, drag, wind compensation
 python -m pytest tests -q
@@ -116,7 +117,8 @@ CLI flags and log messages are in Turkish (`teslimat` = deliveries, `irtifa` = a
 - [x] Wind compensation math validated in sim (true wind: 3/3 roof hits in 5 m/s wind)
 - [ ] In-flight wind estimate from tilt (calibrated; needs longer settling before release)
 - [ ] Drops from 50 m and 75 m
-- [ ] Target filter (cars / people / both) and map-based mission planning UI
+- [x] Target filter `--hedef araba|insan|ikisi` and mixed mission (cars → roof, people → aid ≥ 5 m away); person check before every car drop (offline-tested, sim test pending)
+- [ ] Map-based mission planning UI
 - [ ] Fixed-wing version
 
 ## License and usage rights

@@ -40,6 +40,7 @@ Kararlar kronolojik sırada. Yeni karar verildikçe sona eklenir; geçersiz olan
 | K-20 | Ölçüm altyapısının kendisini test etmek | İki kez yanlış ölçen kod yakalandı |
 | K-21 | Yeni davranış isteğe bağlı eklenir | Kullanıcının seçtiği akış sessizce değişmez |
 | K-22 | Ana mod: aracın tavanına bırakma (+ ince hizalama) | Hedef arabaya doğrudan isabet; 25 m'den tavana 10 cm |
+| K-23 | Hedef filtresi + karma görev; kişi kuralı araç modlarında da | Tek aramada araba ve kişi; kimsenin yanına paket düşmez |
 
 ---
 
@@ -392,9 +393,30 @@ bırakma / balistik nişan yok.
 **Kanıt:** AirSim'de 25 m'den iki deneme: ilk temas hedef arabanın tavanında, merkeze 12 cm ve 10 cm.
 Demo videosu: `docs/videos/arac_ustu.mp4`.
 
+
+## K-23 · Hedef filtresi, karma görev ve kişi kuralının araç modlarına genişletilmesi
+
+**Sorun:** Görev ya sadece araba ya da sadece kişi arıyordu. Ayrıca tavana bırakmada aracın hemen yanında
+duran biri kontrol edilmiyordu: paket ona yakın düşebilirdi.
+
+**Karar:**
+- `--hedef araba | insan | ikisi`. `ikisi` = karma görev (`mission/mixed.py`): tek aramada iki sınıf; araba
+  bulununca tavana (ince hizalama + rüzgar telafisi), kişi bulununca en az 5 m uzağa açık zemine yardım paketi.
+  İkisi birden görülürse öncelik kişide.
+- Kişi kuralı her modda: bırakmadan hemen önce, paketin düşeceği noktanın (rüzgar telafisi varsa sürüklenip
+  düşeceği yer) 5 m içinde kişi görülürse bırakılmaz (`autonomy.people_near`). Pilot onayı bırakmadan önce.
+- Kişi hedefleri için tespit çözünürlüğü kendiliğinden 1280.
+
+**Kanıt:** Simülatörsüz testler: kişi önceliği, aracın 2.2 m yanında kişi varken bırakmama, boşken tavanın
+ortasına bırakma (48 test). Simülasyon testi bekliyor (GPU TDR çökmesi, bkz. açık konular).
+
 ---
 
 ## Açık konular
+
+- 2026-11-06: Görev başlarken (YOLO ekran kartına yüklenirken) Unreal'de tekrarlayan GPU çökmesi
+  (DXGI_ERROR_DEVICE_HUNG, Windows TDR 2 s). Bilgisayar 8 gündür yeniden başlatılmamıştı. Öneri: yeniden
+  başlatma + `TdrDelay` = 10 (yönetici izniyle) — kullanıcı kararı bekliyor.
 
 - PX4 SITL bağlantısı 2026-11-04'te güvenilmez hâle geldi (Windows/WSL güncellemesi sonrası; netstat AirSim
   portlarını göstermiyor, MAVLink UDP verisi gelmiyor). Görevler şimdilik `--backend airsim` ile; `wsl --shutdown`/yeniden
@@ -414,7 +436,7 @@ Demo videosu: `docs/videos/arac_ustu.mp4`.
    görev içi eğim tahmini iyileştirilecek (oturma süresi / sürekli ortalama).
 3. **50 m ve 75 m bırakma** (önce araçların yanındaki teslimat noktalarında; büyük işaretçi ya da iki
    aşamalı hizalama).
-4. **Hedef filtresi:** görevde `--hedef araba | insan | ikisi`.
+4. **Hedef filtresi:** görevde `--hedef araba | insan | ikisi` — kod ve testler hazır (K-23), simülasyon testi bekliyor.
 5. **Haritadan görev seçme:** haritanın üstten görüntüsü üzerinde arama alanı, nokta ve teslimat
    noktası çizen bir arayüz → görev dosyası → drone bu dosyayla uçar (gerçek drone'da da aynı dosya).
 5b. **SAR bırakma noktasında ince hizalama:** kişiye göre görüntüyle son düzeltme (şu an ±1 m; 5 m sınırına

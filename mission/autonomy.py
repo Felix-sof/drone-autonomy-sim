@@ -159,23 +159,37 @@ def marker_offset_avg(vehicle, grab, marker_id, n=FINE_FRAMES):
     return mn, me, spread
 
 
-def estimate_wind(vehicle, n=15):
-    """Havada sabit dururken rüzgar (wn, we): WIND_COMP'e göre bilinen değer ya da eğimden tahmin."""
+WIND_SETTLE_S = 5.0   # rüzgar tahmini: manevradan sonra oturma süresi (kalan eğim tahmini saptırıyor)
+WIND_AVG_S = 4.0      # eğimin ortalandığı süre (kalibrasyonla aynı: wind_calibrate.py)
+
+
+def estimate_wind(vehicle, settle_s=None, avg_s=None):
+    """Havada sabit dururken rüzgar (wn, we): WIND_COMP'e göre bilinen değer ya da eğimden tahmin.
+
+    Hizalanma manevrasından hemen sonra ölçülen eğim manevranın kendisini de içerir: 1.5 s ölçümde tahmin
+    3 m/s ve 45°'ye kadar saptı (2026-11-04). Önce durulur, WIND_SETTLE_S oturulur, WIND_AVG_S ortalanır.
+    """
     if WIND_COMP is None:
         return 0.0, 0.0
     kind, val = WIND_COMP
     if kind == "known":
         return val
     import ballistics
+    settle_s = WIND_SETTLE_S if settle_s is None else settle_s
+    avg_s = WIND_AVG_S if avg_s is None else avg_s
+    vehicle.hover()
     vehicle.wait_still(max_speed=0.05)
+    time.sleep(settle_s)
     rs, ps, ys = [], [], []
-    for _ in range(n):
+    t0 = time.time()
+    while time.time() - t0 < avg_s:
         r, p, y = vehicle.attitude()
         rs.append(r)
         ps.append(p)
         ys.append(y)
-        time.sleep(0.1)
-    return ballistics.wind_from_tilt(sum(rs) / n, sum(ps) / n, sum(ys) / n, val)
+        time.sleep(0.05)
+    yaw = math.atan2(sum(map(math.sin, ys)), sum(map(math.cos, ys)))   # açıların doğru ortalaması
+    return ballistics.wind_from_tilt(sum(rs) / len(rs), sum(ps) / len(ps), yaw, val)
 
 
 def fine_align_marker(vehicle, grab, marker_id, tries=3, target=None):
@@ -323,6 +337,17 @@ def fine_align_target(vehicle, grab, detector, tries=3, target=(0.0, 0.0)):
     return last
 
 
+def people_near(vehicle, img, detector, point_rel=(0.0, 0.0), radius=None):
+    """Drone'a göre point_rel'deki (paketin düşeceği yer) noktanın `radius` m içinde kişi görünüyor mu?
+    Tek sınıflı (sadece araba) modelde kişi sınıfı yoktur: her zaman False döner."""
+    radius = PERSON_CLEAR_M if radius is None else radius
+    n0, e0, _ = vehicle.position()
+    for pn, pe, _ in ground_estimates(vehicle, img, detector.detect(img, conf=0.25, classes=[1])):
+        if math.hypot(pn - (n0 + point_rel[0]), pe - (e0 + point_rel[1])) < radius:
+            return True
+    return False
+
+
 def nearest_dropzone(vehicle, img):
     """Görüntü merkezindeki (hizalanılan) arabaya en yakın teslimat işaretçisi: (id, mesafe_m) ya da None."""
     roll, pitch, yaw = vehicle.attitude()
@@ -450,6 +475,12 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
                     continue
                 n, e, _ = vehicle.position()
                 served_ids.add(marker_id)
+            # kişi kuralı her modda geçerli: paketin düşeceği yerin PERSON_CLEAR_M içinde kimse olmamalı
+            if people_near(vehicle, grab(), detector, (-off[0], -off[1])):
+                log(f"  düşme noktasının {PERSON_CLEAR_M:.0f} m yakınında kişi var, BIRAKILMADI; aramaya devam")
+                if vehicle.height_agl() < alt - 0.5:
+                    vehicle.goto(n, e, -alt, 3.0)
+                continue
             if approve is not None and not approve(grab(), f"teslimat #{marker_id}, {vehicle.height_agl():.1f} m"):
                 log("  pilot onay vermedi, BIRAKILMADI")
                 if vehicle.height_agl() < alt - 0.5:

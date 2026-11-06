@@ -227,3 +227,47 @@ def test_fine_align_target_with_wind_offset():
     fine = autonomy.fine_align_target(v, world.grab, world, target=(0.0, 3.0))
     assert fine is not None
     assert abs(v.p[0]) < autonomy.FINE_TOL_M and abs(v.p[1] + 3.0) < autonomy.FINE_TOL_M
+
+
+import mixed  # noqa: E402
+
+
+class FakePayload:
+    def __init__(self):
+        self.released = 0
+
+    def release(self):
+        self.released += 1
+        return f"pkg{self.released}"
+
+
+def test_pick_target_prefers_people_and_skips_visited():
+    est = [(10.0, 0.0, 0.9, 0), (20.0, 5.0, 0.5, 1), (0.0, 0.0, 0.8, 1)]
+    assert mixed.pick_target(est, visited=[(0.0, 0.0)])[:2] == (20.0, 5.0)   # kişi önce, gidilmiş olan atlanır
+    assert mixed.pick_target([(10.0, 0.0, 0.9, 0)], visited=[])[3] == 0
+    assert mixed.pick_target([(1.0, 1.0, 0.9, 0)], visited=[(0.0, 0.0)]) is None
+
+
+def test_people_near_drop_point():
+    v = FakeVehicle(0, 0)
+    img = np.zeros(SHAPE, np.uint8)
+    assert autonomy.people_near(v, img, FakeWorld(v, [(3.0, 0.0, 1)]))          # 3 m < 5 m
+    assert not autonomy.people_near(v, img, FakeWorld(v, [(9.0, 0.0, 1)]))
+    assert not autonomy.people_near(v, img, FakeWorld(v, [(3.0, 0.0, 0)]))      # araba kişi değil
+
+
+def test_car_drop_refuses_when_person_next_to_car():
+    v = FakeVehicle(0, 0)
+    world = FakeWorld(v, [(2.0, 1.0, 0), (4.0, 2.0, 1)])                       # aracın 2.2 m yanında kişi
+    pay = FakePayload()
+    assert mixed._car_drop(v, world.grab, world, pay, 25.0, log=lambda *a: None) is None
+    assert pay.released == 0
+
+
+def test_car_drop_releases_over_roof_when_clear():
+    v = FakeVehicle(0, 0)
+    world = FakeWorld(v, [(2.0, 1.0, 0), (15.0, 2.0, 1)])                      # kişi 13 m ötede
+    pay = FakePayload()
+    rec = mixed._car_drop(v, world.grab, world, pay, 25.0, log=lambda *a: None)
+    assert rec is not None and pay.released == 1 and rec["hedef_turu"] == "araba"
+    assert math.hypot(v.p[0] - 2.0, v.p[1] - 1.0) < autonomy.FINE_TOL_M

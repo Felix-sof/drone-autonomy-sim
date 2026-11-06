@@ -44,6 +44,9 @@ def main():
     ap.add_argument("--mod", choices=["roof", "dropzone", "sar"], default="roof",
                     help="roof (varsayılan): aracın tavanına; dropzone: aracın yanındaki ArUco teslimat noktasına; "
                          "sar: kişi ara, güvenli mesafede yardım paketi bırak (iki sınıflı model)")
+    ap.add_argument("--hedef", choices=["araba", "insan", "ikisi"], default=None,
+                    help="ne aranacak: araba (--mod roof/dropzone), insan (= --mod sar), ikisi (karma görev: "
+                         "araba bulunca tavana, kişi bulunca 5 m+ uzağa yardım paketi; öncelik kişide)")
     ap.add_argument("--imgsz", type=int, default=960, help="tespit çözünürlüğü (sar için 1280 önerilir)")
     ap.add_argument("--teslim", choices=["ip", "birak"], default="birak",
                     help="sar modunda: birak = 5 m+ uzağa serbest bırakma (varsayılan), ip = kişinin yanına ipli uzatma (sonraki aşama)")
@@ -59,6 +62,12 @@ def main():
                     help="isteğe bağlı: hedefin üstünde bu irtifaya (m) alçalıp bırak (ör. 5). "
                          "Verilmezse seyir irtifasından (en yüksekten) bırakılır")
     args = ap.parse_args()
+    if args.hedef in ("insan", "ikisi") and args.imgsz == 960:
+        args.imgsz = 1280          # kişiler küçük: 1280 px tespit
+    if args.hedef == "insan":
+        args.mod = "sar"
+    elif args.hedef == "araba" and args.mod == "sar":
+        ap.error("--hedef araba ile --mod sar birlikte olmaz")
     fly_mission.SHOW_PREVIEW = args.goster
     drop_alt = args.birakma_irtifa
     if drop_alt is None:
@@ -200,6 +209,32 @@ def main():
         return {"isabet": ok, "tehlikeli": dangerous, "carpma_hizi_ms": drop_test.LAST_IMPACT_SPEED,
                 "kisiye_m": round(nearest, 2), "zemin": kind,
                 "araba": car, "sonuc_metni": f"{text} (en yakın kişiye {nearest:.1f} m)"}
+
+    if args.hedef == "ikisi":
+        from mixed import mixed_mission
+
+        def on_drop_mixed(pkg, kind):
+            return on_drop(pkg) if kind == "araba" else on_drop_sar(pkg)
+        try:
+            results, marker, total, abort_reason = mixed_mission(
+                vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
+                alt=args.irtifa, deliveries=args.teslimat, speed=args.hiz,
+                landing=tuple(cfg["landing"]), on_drop=on_drop_mixed)
+        finally:
+            vehicle.release()
+        cars = [r for r in results if r.get("hedef_turu") == "araba"]
+        ppl = [r for r in results if r.get("hedef_turu") == "kisi"]
+        print(f"\n=== KARMA GÖREV ({args.backend.upper()}) ===")
+        print(f"Araba: {len(cars)} paket, tavana isabet {sum(r.get('isabet', False) for r in cars)}/{len(cars)}  |  "
+              f"Kişi: {len(ppl)} yardım paketi, güvenli {sum(r.get('isabet', False) for r in ppl)}/{len(ppl)}, "
+              f"TEHLİKELİ {sum(r.get('tehlikeli', False) for r in ppl)}")
+        print(f"Toplam süre: {total:.0f} s" + (f"  |  İPTAL: {abort_reason}" if abort_reason else ""))
+        out = ROOT / "results" / f"karma_{args.backend}_{datetime.now():%Y%m%d_%H%M%S}.json"
+        out.write_text(json.dumps({"backend": args.backend, "model": args.model, "sure_s": round(total, 1),
+                                   "biyom": scene.get("biome", "sabit"), "paketler": results},
+                                  indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"Kaydedildi: {out}")
+        return
 
     if args.mod == "sar":
         import sar
