@@ -339,7 +339,18 @@ tutuyor (doğu rüzgarında 3, 5, 8 m/s için k = 0.00072); k = 0.00065 ile tahm
 | gerçek rüzgarla | **3/3** | **0.11 / 0.07 / 0.03 m** |
 | eğimden tahminle | 1/3 | 1.8 / 5.9 / 4.7 m |
 
-Hesap doğru; zayıf halka görev içindeki rüzgar tahmini: hizalanma manevrasından hemen sonra 1.5 s ölçülüyor,
+**Güncelleme (2026-11-06):** Tahmin bırakmadan önce 5 s oturup 4 s ortalanınca, ve ince hizalama arabayı kaydırılmış
+yerinde arayınca (8.5 m kaydırmada araba görüntü merkezinden uzakta kalıyordu):
+
+| Rüzgar | Eğimden tahmin | Tavana isabet | Merkeze |
+|---|---|---|---|
+| doğudan 5 m/s | 5.2–5.3 m/s, yön doğru | **3/3** | 1.41 / 1.31 / 0.80 m |
+| kuzeybatıdan 5 m/s (−3, +4) | 4.4–4.5 m/s, ~10° sapık | 1/3 | 2.17 / 1.44 / 1.92 m |
+
+Çapraz rüzgarda drone'un eğilme tepkisi yöne göre farklı (kalibrasyonda da k çaprazda 0.00047, doğuda 0.00072).
+**Sonraki adım:** kalibrasyonu birkaç yönde yapıp yöne bağlı katsayı (ya da gövde eksenine göre iki katsayı).
+
+Eski not — hizalanma manevrasından hemen sonra 1.5 s ölçülüyor,
 kalan manevra eğimi tahmini 3 m/s ve 45°'ye kadar saptırıyor. **Sonraki adım:** bırakmadan önce birkaç
 saniye oturup daha uzun ölçmek ya da rüzgarı arama boyunca sürekli ölçüp ortalamak.
 
@@ -409,6 +420,28 @@ duran biri kontrol edilmiyordu: paket ona yakın düşebilirdi.
 
 **Kanıt:** Simülatörsüz testler: kişi önceliği, aracın 2.2 m yanında kişi varken bırakmama, boşken tavanın
 ortasına bırakma (48 test). Simülasyon testi bekliyor (GPU TDR çökmesi, bkz. açık konular).
+
+
+## K-24 · GPU kilitlenmesi: YOLO'yu ısıtmak ve FP16
+
+**Sorun (2026-11-06):** Görev başlar başlamaz Unreal'de tekrarlayan GPU çökmesi (DXGI_ERROR_DEVICE_HUNG); yeniden
+başlatma ve Windows TDR süresini 2 → 10 s yapmak çözmedi. Çökme anında GPU Virtual Shadow Maps çiziyordu.
+
+**Teşhis deneyi:** YOLO'suz uçuş (rüzgar kalibrasyonu) → çökme yok. Yani sorun Unreal ile YOLO'nun GPU'yu aynı anda
+kullanması; YOLO'nun ilk çalıştırmasındaki ağır hazırlık, drone harekete geçip gölgeler yeniden çizilirken geliyordu.
+
+**Karar:** `CarDetector` modeli oluşturulurken, drone yerdeyken bir kez ısıtılır; GPU'da FP16 çalışır. Takip kamerası
+yalnızca video modunda (`sim.sh video`).
+
+**Kanıt:** Ardından 5 görev (17 paket) çökmesiz.
+
+## K-25 · Yüksek irtifa: irtifaya göre tarama ve tam kaplama
+
+**Karar:** Şerit aralığı irtifayla orantılı (25 m'de 35 m); şeritler alanı tam kaplayacak şekilde eşit aralıklı
+(eski desen 50 m'de doğu kenarında ~17 m'yi görmüyordu). 25 m: 3, 50 m: 2, 75 m: 1 şerit.
+
+**Kanıt (50 m'den tavana, AirSim, rüzgarsız):** 3/3 isabet, merkeze **11 / 3 / 5 cm**; helipad'e iniş 1 cm; görev 212 s.
+İnce hizalama irtifadan bağımsız çalışıyor.
 
 ---
 

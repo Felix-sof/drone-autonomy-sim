@@ -31,6 +31,7 @@ Real-drone guide: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md) · design decisio
 | What | Result |
 |---|---|
 | **Drop onto the car roof from 25 m** (default mode, fine alignment) | first contact on the target roof, **10–12 cm** from its centre |
+| **Drop onto the car roof from 50 m** | **3/3**, 3–11 cm from the roof centre; helipad landing 1 cm |
 | Drop onto a marked drop zone next to the car from 25 m, 3 missions × 3 packages | **9/9**, mean **4.8 cm** from the marker centre (was 0.50 m before fine alignment) |
 | Fully autonomous mission on **PX4 SITL** (MAVSDK, gimbal camera), 4 missions × 3 packages | **12/12** hits, 12 different cars, 0 false alarms; also **9/9 in 5–8 m/s wind** |
 | **Vision-only precision landing** (ArUco, tilt-compensated) | **0–1 cm** (AirSim), ~7 cm (PX4) |
@@ -38,9 +39,9 @@ Real-drone guide: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md) · design decisio
 | Car detector trained **only on simulation**, tested on real drone images (VisDrone) | mAP50 **0.02**: sim-only does not transfer |
 | Same detector trained on **sim + real data** | cars mAP50 **0.89** on real images, 0.88 in sim |
 | Person detection after adding 5 biomes, 32 posed people and real SAR data (HERIDAL) | sim **0.19 → 0.56**, HERIDAL **0.26 → 0.68**, VisDrone 0.59 → 0.62 |
-| **Wind:** 5 m/s crosswind, drop onto the roof from 25 m with drag + wind physics | no compensation **0/3** (5.9–8.2 m off); compensation with the true wind **3/3, 3–11 cm**; with wind estimated from the drone's tilt 1/3 (estimator needs longer settling, next step) |
+| **Wind:** 5 m/s crosswind, drop onto the roof from 25 m with drag + wind physics | no compensation **0/3** (5.9–8.2 m off); true wind **3/3, 3–11 cm**; wind estimated from the drone's own tilt: **3/3** in an easterly wind (0.8–1.4 m), 1/3 in a diagonal wind (direction-dependent calibration next) |
 | Negative test: 40 % of drop-zone markers removed | **0** deliveries to unmarked cars |
-| Simulator-free tests (fake vehicle, closed loop) | **48** tests, ~1.5 s |
+| Simulator-free tests (fake vehicle, closed loop) | **53** tests, ~1.5 s |
 
 "Hit" means the package's **first contact** point is on the target car's top-down footprint (another car, a tree
 or the ground are counted separately). Full results table: [README.tr.md](README.tr.md#sonuçlar-şimdiye-kadar).
@@ -115,8 +116,10 @@ CLI flags and log messages are in Turkish (`teslimat` = deliveries, `irtifa` = a
 - [x] Search-and-rescue with a ≥ 5 m safety distance (9/9 safe, 0 dangerous)
 - [x] Roof drop with fine alignment (25 m: ~10 cm from the roof centre)
 - [x] Wind compensation math validated in sim (true wind: 3/3 roof hits in 5 m/s wind)
-- [ ] In-flight wind estimate from tilt (calibrated; needs longer settling before release)
-- [ ] Drops from 50 m and 75 m
+- [x] In-flight wind estimate from tilt (easterly 5 m/s: 3/3 roof hits)
+- [ ] Direction-dependent wind calibration (diagonal wind: 1/3)
+- [x] Drop from 50 m (3/3, 3–11 cm)
+- [ ] Drop from 75 m
 - [x] Target filter `--hedef araba|insan|ikisi` and mixed mission (cars → roof, people → aid ≥ 5 m away); person check before every car drop (offline-tested, sim test pending)
 - [ ] Map-based mission planning UI
 - [ ] Fixed-wing version

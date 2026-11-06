@@ -67,15 +67,27 @@ def safety_check(vehicle, area, t_start):
         raise Abort(f"görev süresi aşıldı ({MAX_MISSION_S} s)")
 
 
+def lane_spacing(alt):
+    """Şerit aralığı irtifayla orantılı: kamera yerde ~2·irtifa genişlik görür (90° görüş); 25 m'de 35 m."""
+    return LANE_SPACING_M * max(alt, 25.0) / 25.0
+
+
 def lawnmower(area, spacing, alt):
-    """Alanı x (kuzey) boyunca gidip gelen şeritlerle kaplayan NED noktaları."""
+    """Alanı x (kuzey) boyunca gidip gelen şeritlerle kaplayan NED noktaları.
+
+    Şerit sayısı genişlik/aralık'a yuvarlanır ve şeritler EŞİT aralıkla, kenarlardan yarım aralık içeride
+    dağıtılır: her şerit ±aralık/2 görürse alanın tamamı kaplanır (eski sürüm ilk şeridi sabit bir oranla
+    başlatıyordu; 50 m'de doğu kenarında ~17 m görülmeyen şerit kalıyordu).
+    """
+    width = area[3] - area[2]
+    n = max(1, math.ceil(width / spacing - 1e-9))
+    step = width / n
     pts, flip = [], False
-    e = area[2] + spacing / 3
-    while e <= area[3] + 1e-6:
+    for i in range(n):
+        e = area[2] + (i + 0.5) * step
         ns = (area[0], area[1]) if not flip else (area[1], area[0])
         pts += [(ns[0], e, -alt), (ns[1], e, -alt)]
         flip = not flip
-        e += spacing
     return pts
 
 
@@ -297,9 +309,20 @@ def descend_over_marker(vehicle, grab, marker_id, target_alt, detector=None, tim
     return "alçalma zaman aşımı"
 
 
-def target_offset_avg(vehicle, grab, detector, n=FINE_FRAMES):
-    """Drone dururken n karede, görüntü merkezine en yakın arabanın yerdeki ortalama konumu
-    (drone'a göre Δn, Δe) ve yayılımı. Görülemezse None."""
+def expected_pixel(shape, rel_ne, height, hfov_deg=90.0):
+    """Yerde drone'a göre (Δn, Δe) noktasının görüntüdeki yaklaşık pikseli (aşağı bakan, yaw kilitli kamera)."""
+    h, w = shape[:2]
+    f = (w / 2) / math.tan(math.radians(hfov_deg / 2))
+    import perception
+    yaw = perception.CAMERA_YAW_LOCK or 0.0
+    fwd = rel_ne[0] * math.cos(yaw) + rel_ne[1] * math.sin(yaw)
+    right = -rel_ne[0] * math.sin(yaw) + rel_ne[1] * math.cos(yaw)
+    return w / 2 + right / height * f, h / 2 - fwd / height * f
+
+
+def target_offset_avg(vehicle, grab, detector, n=FINE_FRAMES, expect=(0.0, 0.0)):
+    """Drone dururken n karede, beklenen yere (expect: drone'a göre Δn, Δe; rüzgar telafisinde araba
+    drone'un 8-9 m yanında olabilir) en yakın arabanın yerdeki ortalama konumu ve yayılımı. Yoksa None."""
     pts = []
     for _ in range(n * 3):
         if len(pts) >= n:
@@ -308,8 +331,9 @@ def target_offset_avg(vehicle, grab, detector, n=FINE_FRAMES):
         roll, pitch, yaw = vehicle.attitude()
         h, w = img.shape[:2]
         boxes = detector.detect(img, conf=TRACK_CONF)
-        b = min(boxes, key=lambda b: math.dist(box_center(b), (w / 2, h / 2)), default=None)
-        if b is None or math.dist(box_center(b), (w / 2, h / 2)) > 0.15 * w:
+        ref = expected_pixel(img.shape, expect, max(vehicle.height_agl(), 1.0))
+        b = min(boxes, key=lambda b: math.dist(box_center(b), ref), default=None)
+        if b is None or math.dist(box_center(b), ref) > 0.15 * w:
             continue
         fly_mission.show(img, [b])
         g = pixel_to_ground(img.shape, *box_center(b), vehicle.height_agl(), roll, pitch, yaw)
@@ -328,7 +352,8 @@ def fine_align_target(vehicle, grab, detector, tries=3, target=(0.0, 0.0)):
     last = None
     for _ in range(tries):
         vehicle.wait_still(max_speed=0.05)
-        last = target_offset_avg(vehicle, grab, detector)
+        # ilk ölçümde araba merkezde (gevşek hizalamadan), sonrakilerde hedef kaydırmasının olduğu yerde
+        last = target_offset_avg(vehicle, grab, detector, expect=(0.0, 0.0) if last is None else target)
         if last is None:
             return None
         if math.hypot(last[0] - target[0], last[1] - target[1]) < FINE_TOL_M:
@@ -371,7 +396,7 @@ def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliver
     approve:  isteğe bağlı approve(img, açıklama) -> bool; bırakmadan hemen önce çağrılır
               (gerçek uçuşta pilot onayı). False dönerse paket bırakılmaz.
     """
-    route = lawnmower(area, LANE_SPACING_M, alt)
+    route = lawnmower(area, lane_spacing(alt), alt)
     log(f"Arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
     visited, dropped, results = [], [], []
     served_ids = set()  # teslimat yapılan işaretçi numaraları

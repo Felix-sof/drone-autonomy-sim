@@ -1,0 +1,88 @@
+{
+  "backend": "airsim",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "sure_s": 196.4,
+  "biyom": "kayalik",
+  "paketler": [
+    {
+      "hedef_turu": "kisi",
+      "kisi_tahmini": [
+        -3.05,
+        -23.43
+      ],
+      "aciklik": 1.0,
+      "no": 1,
+      "n": 2.97,
+      "e": -20.93,
+      "guven": 0.47,
+      "zaman_s": 38.2,
+      "isabet": true,
+      "tehlikeli": false,
+      "carpma_hizi_ms": 17.1,
+      "kisiye_m": 5.56,
+      "zemin": "yer",
+      "araba": "StaticMeshActor_2292",
+      "sonuc_metni": "GÜVENLİ TESLİMAT ✔ (en yakın kişiye 5.6 m)"
+    },
+    {
+      "hedef_turu": "kisi",
+      "kisi_tahmini": [
+        -8.66,
+        -31.12
+      ],
+      "aciklik": 1.0,
+      "no": 2,
+      "n": -1.9,
+      "e": -31.14,
+      "guven": 0.76,
+      "zaman_s": 64.3,
+      "isabet": true,
+      "tehlikeli": false,
+      "carpma_hizi_ms": 20.2,
+      "kisiye_m": 5.71,
+      "zemin": "yer",
+      "araba": "StaticMeshActor_2292",
+      "sonuc_metni": "GÜVENLİ TESLİMAT ✔ (en yakın kişiye 5.7 m)"
+    },
+    {
+      "hedef_turu": "kisi",
+      "kisi_tahmini": [
+        -30.91,
+        -4.05
+      ],
+      "aciklik": 1.0,
+      "no": 3,
+      "n": -35.7,
+      "e": 0.75,
+      "guven": 0.59,
+      "zaman_s": 98.1,
+      "isabet": true,
+      "tehlikeli": false,
+      "carpma_hizi_ms": 20.5,
+      "kisiye_m": 6.09,
+      "zemin": "yer",
+      "araba": "StaticMeshActor_2296",
+      "sonuc_metni": "GÜVENLİ TESLİMAT ✔ (en yakın kişiye 6.1 m)"
+    },
+    {
+      "hedef_turu": "kisi",
+      "kisi_tahmini": [
+        -39.5,
+        23.74
+      ],
+      "aciklik": 1.0,
+      "no": 4,
+      "n": -34.73,
+      "e": 28.51,
+      "guven": 0.78,
+      "zaman_s": 127.4,
+      "isabet": true,
+      "tehlikeli": false,
+      "carpma_hizi_ms": 20.7,
+      "kisiye_m": 5.6,
+      "zemin": "yer",
+      "araba": "StaticMeshActor_2288",
+      "sonuc_metni": "GÜVENLİ TESLİMAT ✔ (en yakın kişiye 5.6 m)"
+    }
+  ]
+}

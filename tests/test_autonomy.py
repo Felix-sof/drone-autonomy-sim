@@ -229,6 +229,16 @@ def test_fine_align_target_with_wind_offset():
     assert abs(v.p[0]) < autonomy.FINE_TOL_M and abs(v.p[1] + 3.0) < autonomy.FINE_TOL_M
 
 
+@pytest.mark.parametrize("off", [3.0, 8.5])
+def test_fine_align_target_large_wind_offset(off):
+    # 5 m/s rüzgarda 25 m'den kaydırma ~8.5 m: araba görüntü merkezinden uzakta kalır, yine de bulunmalı
+    v = FakeVehicle(0, 0, alt=25)
+    world = FakeWorld(v, [(0.0, 0.0, 0)])
+    fine = autonomy.fine_align_target(v, world.grab, world, target=(0.0, off))
+    assert fine is not None
+    assert abs(v.p[0]) < autonomy.FINE_TOL_M and abs(v.p[1] + off) < autonomy.FINE_TOL_M
+
+
 import mixed  # noqa: E402
 
 
@@ -271,3 +281,14 @@ def test_car_drop_releases_over_roof_when_clear():
     rec = mixed._car_drop(v, world.grab, world, pay, 25.0, log=lambda *a: None)
     assert rec is not None and pay.released == 1 and rec["hedef_turu"] == "araba"
     assert math.hypot(v.p[0] - 2.0, v.p[1] - 1.0) < autonomy.FINE_TOL_M
+
+
+
+@pytest.mark.parametrize("alt", [25.0, 50.0, 75.0])
+def test_lawnmower_full_coverage_at_altitude(alt):
+    area = (-45, 45, -35, 55)
+    sp = autonomy.lane_spacing(alt)
+    lanes = sorted({p[1] for p in autonomy.lawnmower(area, sp, alt)})
+    half = alt                                      # 90° görüş: yerde ±irtifa genişlik
+    assert lanes[0] - half <= area[2] and lanes[-1] + half >= area[3]       # kenarlar kaplanıyor
+    assert all(b - a <= 2 * half for a, b in zip(lanes, lanes[1:]))         # şeritler arasında boşluk yok

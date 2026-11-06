@@ -60,15 +60,28 @@ class CarDetector:
     (default_classes; araba görevleri için [0]).
     """
 
-    def __init__(self, model_path, conf=0.3, imgsz=960, default_classes=(0,)):
+    def __init__(self, model_path, conf=0.3, imgsz=960, default_classes=(0,), half=None, warmup=True):
         from ultralytics import YOLO
         self.model = YOLO(model_path)
         self.conf = conf
         self.imgsz = imgsz
         self.default_classes = list(default_classes)
+        try:
+            import torch
+            cuda = torch.cuda.is_available()
+        except ImportError:
+            cuda = False
+        # FP16: GPU'da yarı bellek ve daha kısa çekirdekler (Unreal ile aynı GPU'yu paylaşırken önemli)
+        self.half = cuda if half is None else half
+        if warmup:
+            # İlk çalıştırmadaki ağır hazırlık (çekirdek derleme/seçimi) görev sırasında, Unreal'in gölge
+            # çizimiyle aynı ana denk gelince GPU kilitleniyordu (DEVICE_HUNG, 2026-11-06). Sakin anda yap.
+            self.model.predict(np.zeros((self.imgsz * 9 // 16, self.imgsz, 3), np.uint8), imgsz=self.imgsz,
+                               half=self.half, verbose=False)
 
     def detect(self, img, conf=None, classes=None):
         r = self.model.predict(img, conf=self.conf if conf is None else conf, imgsz=self.imgsz, verbose=False,
+                               half=self.half,
                                classes=self.default_classes if classes is None else list(classes))[0]
         return [(*b, c, int(k)) for b, c, k in zip(r.boxes.xyxy.cpu().tolist(), r.boxes.conf.cpu().tolist(),
                                                     r.boxes.cls.cpu().tolist())]

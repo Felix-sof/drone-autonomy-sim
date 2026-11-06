@@ -87,7 +87,7 @@ def _person_drop(vehicle, grab, detector, payload, alt, log, approve=None):
 def mixed_mission(vehicle, grab, detector, payload, area, alt=25.0, deliveries=3, speed=5.0,
                   landing=(0.0, 0.0), on_drop=None, log=print, approve=None):
     """on_drop(handle, tür) -> dict; tür 'araba' ya da 'kisi'. (sonuçlar, işaretçiyle_indi, süre, iptal) döner."""
-    route = lawnmower(area, LANE_SPACING_M, alt)
+    route = lawnmower(area, autonomy.lane_spacing(alt), alt)
     log(f"Karma arama (araba + kişi): {len(route) // 2} şerit, irtifa {alt:.0f} m")
     visited, results = [], []
     t_start, abort_reason, approaches, idx = time.time(), None, 0, 0

@@ -1,0 +1,70 @@
+{
+  "backend": "airsim",
+  "ruzgar": "0,0",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "irtifa_m": 50.0,
+  "birakma_irtifa_m": null,
+  "mod": "roof",
+  "paket_fizigi": "basit",
+  "ruzgar_telafi": "yok",
+  "sure_s": 212.2,
+  "inis_hatasi_m": 0.01,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": 3.44,
+      "e": -36.24,
+      "guven": 0.8,
+      "isaretci": null,
+      "zaman_s": 54.8,
+      "kamera_hedef_ne_m": [
+        -0.039,
+        0.007
+      ],
+      "birakma_irtifa_m": 50.99,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2289",
+      "merkeze_m": 0.11,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.11 m)"
+    },
+    {
+      "no": 2,
+      "n": -0.33,
+      "e": -29.51,
+      "guven": 0.76,
+      "isaretci": null,
+      "zaman_s": 87.3,
+      "kamera_hedef_ne_m": [
+        -0.002,
+        0.046
+      ],
+      "birakma_irtifa_m": 50.9,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2296",
+      "merkeze_m": 0.03,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.03 m)"
+    },
+    {
+      "no": 3,
+      "n": -33.28,
+      "e": -21.56,
+      "guven": 0.77,
+      "isaretci": null,
+      "zaman_s": 127.1,
+      "kamera_hedef_ne_m": [
+        -0.103,
+        0.053
+      ],
+      "birakma_irtifa_m": 51.0,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2292",
+      "merkeze_m": 0.05,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.05 m)"
+    }
+  ]
+}
