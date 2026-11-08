@@ -274,10 +274,12 @@ def _tether_delivery(vehicle, grab, detector, payload, img, pbox, alt, approve, 
 
 
 def sar_mission(vehicle, grab, detector, payload, area, alt=25.0, packages=3, speed=5.0,
-                landing=(0.0, 0.0), on_drop=None, log=print, drop_alt=None, approve=None, method="drop"):
+                landing=(0.0, 0.0), on_drop=None, log=print, drop_alt=None, approve=None, method="drop",
+                points=None):
     """method: "tether" (kişinin yanına ipli uzatma) | "drop" (güvenli mesafeye serbest bırakma).
     drop_alt: "drop"ta bu irtifaya (zeminden, m) alçalıp bırakır; None = seyir irtifası."""
-    route = lawnmower(area, LANE_SPACING_M, alt)
+    import autonomy
+    route = autonomy.mission_route(area, alt, points)
     log(f"SAR arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
     found, results = [], []
     t_start, abort_reason = time.time(), None

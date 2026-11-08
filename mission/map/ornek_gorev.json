@@ -1,0 +1,10 @@
+{
+  "ad": "dogu_yarisi",
+  "alan": [-45, 45, 12, 55],
+  "noktalar": [[25.0, 30.0]],
+  "hedef": "araba",
+  "mod": "roof",
+  "irtifa": 25,
+  "teslimat": 2,
+  "ruzgar_telafi": "yok"
+}

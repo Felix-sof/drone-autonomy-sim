@@ -8,6 +8,7 @@ Kamera karesi, paketin fiziği ve isabet değerlendirmesi her iki modda AirSim'd
 gerçek drone'da bunların yerini kamera sürücüsü ve GripperPayload alır.
 """
 import argparse
+from pathlib import Path
 import json
 import math
 from datetime import datetime
@@ -61,7 +62,21 @@ def main():
     ap.add_argument("--birakma-irtifa", type=float, default=None,
                     help="isteğe bağlı: hedefin üstünde bu irtifaya (m) alçalıp bırak (ör. 5). "
                          "Verilmezse seyir irtifasından (en yüksekten) bırakılır")
+    ap.add_argument("--gorev", default=None,
+                    help="görev planlayıcının ürettiği görev dosyası (alan, kontrol noktaları, hedef, irtifa...); "
+                         "dosyadaki ayarlar komut satırının yerine geçer")
     args = ap.parse_args()
+    plan = None
+    if args.gorev:   # görev planlayıcı (tools/gorev_planlayici): dosyadaki her alan komut satırını ezer
+        plan = json.loads(Path(args.gorev).read_text(encoding="utf-8"))
+        for key, attr in (("hedef", "hedef"), ("mod", "mod"), ("irtifa", "irtifa"), ("teslimat", "teslimat"),
+                          ("hiz", "hiz"), ("ruzgar_telafi", "ruzgar_telafi")):
+            if plan.get(key) is not None:
+                setattr(args, attr, plan[key])
+        if plan.get("hedef") == "insan":
+            args.mod = "sar"
+        print(f"Görev dosyası: {args.gorev} — {plan.get('ad', '')}  hedef {args.hedef or args.mod}, irtifa "
+              f"{args.irtifa:.0f} m, {args.teslimat} paket, {len(plan.get('noktalar') or [])} kontrol noktası")
     if args.hedef in ("insan", "ikisi") and args.imgsz == 960:
         args.imgsz = 1280          # kişiler küçük: 1280 px tespit
     if args.hedef == "insan":
@@ -83,6 +98,13 @@ def main():
                                   else __import__("math").radians(cfg["camera_yaw_lock_deg"]))
     scene = json.loads((ROOT / "mission" / "scene_objects.json").read_text(encoding="utf-8"))
     G = scene["ground_z_ned"]
+    mission_area = tuple(plan["alan"]) if plan and plan.get("alan") else area(scene)
+    points = [tuple(pt) for pt in plan.get("noktalar") or []] if plan else None
+    if plan:
+        full = area(scene)
+        if not (full[0] - 30 <= mission_area[0] < mission_area[1] <= full[1] + 30 and
+                full[2] - 30 <= mission_area[2] < mission_area[3] <= full[3] + 30):
+            raise SystemExit(f"görev alanı {mission_area} haritanın dışında (harita {full}); planlayıcıda yeniden çiz")
     drop_test.GROUND_Z = G
     cam = cfg["camera"]
 
@@ -225,9 +247,9 @@ def main():
             return on_drop(pkg) if kind == "araba" else on_drop_sar(pkg)
         try:
             results, marker, total, abort_reason = mixed_mission(
-                vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
+                vehicle, lambda: get_rgb(client, cam), detector, payload, mission_area,
                 alt=args.irtifa, deliveries=args.teslimat, speed=args.hiz,
-                landing=tuple(cfg["landing"]), on_drop=on_drop_mixed)
+                landing=tuple(cfg["landing"]), on_drop=on_drop_mixed, points=points)
         finally:
             vehicle.release()
         cars = [r for r in results if r.get("hedef_turu") == "araba"]
@@ -248,11 +270,11 @@ def main():
         import sar
         try:
             results, marker, total, abort_reason = sar.sar_mission(
-                vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
+                vehicle, lambda: get_rgb(client, cam), detector, payload, mission_area,
                 alt=args.irtifa, packages=args.teslimat, speed=args.hiz,
                 landing=tuple(cfg["landing"]),
                 on_drop=on_tether_sar if args.teslim == "ip" else on_drop_sar, drop_alt=drop_alt,
-                method="tether" if args.teslim == "ip" else "drop")
+                method="tether" if args.teslim == "ip" else "drop", points=points)
         finally:
             vehicle.release()
         p = client.simGetVehiclePose().position
@@ -277,9 +299,9 @@ def main():
 
     try:
         results, marker, total, abort_reason = search_and_deliver(
-            vehicle, lambda: get_rgb(client, cam), detector, payload, area(scene),
+            vehicle, lambda: get_rgb(client, cam), detector, payload, mission_area,
             alt=args.irtifa, deliveries=args.teslimat, speed=args.hiz,
-            landing=tuple(cfg["landing"]), on_drop=on_drop, mode=args.mod, drop_alt=drop_alt)
+            landing=tuple(cfg["landing"]), on_drop=on_drop, mode=args.mod, drop_alt=drop_alt, points=points)
     finally:
         vehicle.release()
 

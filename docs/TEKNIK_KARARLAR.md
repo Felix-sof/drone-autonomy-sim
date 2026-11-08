@@ -45,6 +45,7 @@ Kararlar kronolojik sırada. Yeni karar verildikçe sona eklenir; geçersiz olan
 | K-25 | İrtifaya göre tam kaplayan tarama | 50 m ve 75 m'den tavana 3/3 |
 | K-26 | Rüzgar tahmini için tablo kalibrasyonu | Çapraz rüzgarda 0/3 → 3/3; rüzgarda 9/9 |
 | K-27 | Rüzgarlı yüksek irtifa: hedefi dünya konumunda takip; ısı/kare hızı uyarısı | 50–75 m, 5–6 m/s rüzgarda 10/10 tavana, hepsi farklı araç |
+| K-28 | Haritadan görev planlama (tek dosyalık sayfa → görev dosyası) | Alan/nokta/hedef/irtifa seçilip `--gorev` ile uçuluyor |
 
 ---
 
@@ -523,6 +524,24 @@ kontrolcüsü kare hızına duyarlı: drone rüzgara farklı eğiliyor, serin si
 alınmalı). Gerçek PX4 sabit hızda çalıştığı için bu bir simülasyon sorunu; ama kalibrasyonun drone/kontrolcüye özgü
 olduğunu da gösteriyor.
 
+
+## K-28 · Haritadan görev planlama
+
+**Sorun:** Görev alanı ve ayarları koddan/komut satırından geliyordu; kullanıcı haritaya bakıp nereyi aramak
+istediğini seçemiyordu.
+
+**Karar:**
+- `mission/map_capture.py`: drone alanın ortasında 150 m'ye çıkar, gimbal'lı kamerayla tek kare (yerde ~301 × 169 m);
+  `harita.json` piksel → NED dönüşümünü taşır (kamera kuzeye kilitli, 90° görüş).
+- `tools/gorev_planlayici.py`: harita gömülü **tek dosyalık HTML** üretir (sunucu/internet gerekmez). Arama alanı
+  dikdörtgen çizilir, kontrol noktaları tıklanır, hedef/mod/irtifa/paket/rüzgar seçilir → `gorev.json` indirilir.
+- `run_autonomy.py --gorev gorev.json`: dosyadaki ayarlar komut satırını ezer; önce kontrol noktaları, sonra alan taranır
+  (`autonomy.mission_route`, üç görev türünde ortak). Alan haritanın dışındaysa görev başlamaz.
+- Aynı görev dosyası gerçek drone'da kullanılabilir; harita yerine uydu/ortofoto + koordinat bilgisi gelir.
+
+**Kanıt:** Doğu yarısı + 1 kontrol noktası, tavana 2 paket: 2/2 isabet (merkeze 11 / 9 cm), bulunan iki araba da
+çizilen alanın içinde; iniş 2 cm. 58 simülatörsüz test.
+
 ---
 
 ## Açık konular
@@ -550,8 +569,7 @@ olduğunu da gösteriyor.
 2. **Rüzgar telafisi:** tamamlandı (K-18, K-26): drone rüzgarı kendi eğiminden ölçerek 25 m'de 5–6 m/s rüzgarda 9/9 tavana.
 3. **50 m ve 75 m bırakma:** tamamlandı (K-25): tavana 3/3 ve 3/3, rüzgarsız.
 4. **Hedef filtresi:** görevde `--hedef araba | insan | ikisi` — kod ve testler hazır (K-23), simülasyon testi bekliyor.
-5. **Haritadan görev seçme:** haritanın üstten görüntüsü üzerinde arama alanı, nokta ve teslimat
-   noktası çizen bir arayüz → görev dosyası → drone bu dosyayla uçar (gerçek drone'da da aynı dosya).
+5. **Haritadan görev seçme:** tamamlandı (K-28).
 5b. **SAR bırakma noktasında ince hizalama:** kişiye göre görüntüyle son düzeltme (şu an ±1 m; 5 m sınırına
    pay ~0.4 m).
 6. **İnsanlara yardım ulaştırma:** araçlarda başarı oturduktan sonra ana hedef kişiler. Paket kişiye

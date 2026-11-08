@@ -91,6 +91,13 @@ def lawnmower(area, spacing, alt):
     return pts
 
 
+def mission_route(area, alt, points=None):
+    """Görev rotası: önce verilen kontrol noktaları (sırayla), sonra alanın şeritlerle taranması.
+    points: [(n, e), ...] yerel NED metre (görev planlayıcıdan)."""
+    first = [(n, e, -alt) for n, e in (points or [])]
+    return first + lawnmower(area, lane_spacing(alt), alt)
+
+
 def ground_estimates(vehicle, img, boxes):
     """Tespit kutularını (eğim telafili) dünya konumuna çevirir: [(n, e, güven), ...]"""
     n0, e0, _ = vehicle.position()
@@ -412,15 +419,18 @@ def nearest_dropzone(vehicle, img):
 
 
 def search_and_deliver(vehicle, grab, detector, payload, area, alt=25.0, deliveries=3, speed=5.0,
-                       landing=(0.0, 0.0), on_drop=None, log=print, mode="dropzone", drop_alt=None, approve=None):
+                       landing=(0.0, 0.0), on_drop=None, log=print, mode="dropzone", drop_alt=None, approve=None,
+                       points=None):
     """Tam görev. (teslimatlar, işaretçiyle_indi_mi, süre_s, iptal_sebebi) döndürür.
+    points: önce gidilecek kontrol noktaları [(n, e), ...] (görev planlayıcı); sonra alan taranır.
 
     drop_alt: dropzone modunda bu irtifaya (zeminden, m) alçalıp bırakır; None = seyir irtifasından.
     approve:  isteğe bağlı approve(img, açıklama) -> bool; bırakmadan hemen önce çağrılır
               (gerçek uçuşta pilot onayı). False dönerse paket bırakılmaz.
     """
-    route = lawnmower(area, lane_spacing(alt), alt)
-    log(f"Arama deseni: {len(route) // 2} şerit, irtifa {alt:.0f} m")
+    route = mission_route(area, alt, points)
+    log(f"Arama deseni: {len(points or [])} kontrol noktası + {len(lawnmower(area, lane_spacing(alt), alt)) // 2} "
+        f"şerit, irtifa {alt:.0f} m")
     WIND_HISTORY.clear()
     visited, dropped, results = [], [], []
     served_ids = set()  # teslimat yapılan işaretçi numaraları

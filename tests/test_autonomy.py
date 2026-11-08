@@ -315,3 +315,11 @@ def test_fine_align_does_not_switch_to_car_under_offset_position(monkeypatch):
     fine = autonomy.fine_align_target(v, world.grab, world, target=(0.0, 30.0))
     assert fine is not None
     assert abs(v.p[0]) < 0.5 and abs(v.p[1] + 30.0) < 0.5      # hedefin 30 m batısı, başka arabaya göre değil
+
+
+def test_mission_route_visits_points_first_then_covers_area():
+    area = (-45, 45, -35, 55)
+    r = autonomy.mission_route(area, 50.0, points=[(10.0, -20.0), (30.0, 40.0)])
+    assert r[:2] == [(10.0, -20.0, -50.0), (30.0, 40.0, -50.0)]
+    assert r[2:] == autonomy.lawnmower(area, autonomy.lane_spacing(50.0), 50.0)
+    assert autonomy.mission_route(area, 25.0) == autonomy.lawnmower(area, autonomy.lane_spacing(25.0), 25.0)

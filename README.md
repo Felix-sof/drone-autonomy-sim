@@ -42,7 +42,7 @@ Real-drone guide: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md) · design decisio
 | **Wind:** 5–6 m/s from three directions, drop onto the roof from 25 m with drag + wind physics; the drone measures the wind **from its own tilt** (36-direction look-up calibration) | **9/9 roof hits**, 3–90 cm from the centre; without compensation 0/3 (6–8 m off) |
 | **Wind at 50 m / 75 m:** 5–6 m/s, the drone offsets its release point 19–30 m upwind | **10/10 roof hits**, every package on a different car, 0.03–1.2 m from the roof centre |
 | Negative test: 40 % of drop-zone markers removed | **0** deliveries to unmarked cars |
-| Simulator-free tests (fake vehicle, closed loop) | **56** tests, ~2 s |
+| Simulator-free tests (fake vehicle, closed loop) | **58** tests, ~2 s |
 
 "Hit" means the package's **first contact** point is on the target car's top-down footprint (another car, a tree
 or the ground are counted separately). Full results table: [README.tr.md](README.tr.md#sonuçlar-şimdiye-kadar).
@@ -100,6 +100,17 @@ tests/                        Simulator-free tests
 docs/                         Real-drone guide, technical decisions log, demo video
 ```
 
+## Mission planner
+
+```
+python mission/map_capture.py        # sim running: top-down map from 150 m (mission/map/harita.jpg + .json)
+python tools/gorev_planlayici.py     # writes mission/map/gorev_planlayici.html — open it in a browser
+python mission/run_autonomy.py --model <best.pt> --gorev gorev.json
+```
+
+The planner page is a single offline HTML file: draw the search area, click waypoints, choose target (car / person /
+both), roof or drop-zone mode, altitude, number of packages and wind compensation, then save `gorev.json`.
+
 ## Running
 
 ```
@@ -125,7 +136,7 @@ CLI flags and log messages are in Turkish (`teslimat` = deliveries, `irtifa` = a
 - [x] Direction-dependent wind calibration (look-up table): 9/9 roof hits in 5–6 m/s wind from 3 directions
 - [x] Drops from 50 m (3/3, 3–11 cm) and 75 m (3/3, 5–23 cm)
 - [x] Target filter `--hedef araba|insan|ikisi` and mixed mission (cars → roof, people → aid ≥ 5 m away); person check before every car drop (offline-tested, sim test pending)
-- [ ] Map-based mission planning UI
+- [x] Map-based mission planner: draw search area and waypoints on a top-down map, pick target/altitude/packages → `gorev.json` → `run_autonomy.py --gorev`
 - [ ] Fixed-wing version
 
 ## License and usage rights
