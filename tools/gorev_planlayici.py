@@ -34,7 +34,8 @@ PAGE = r"""<!doctype html>
  button.on { border-color:var(--accent); color:var(--accent); font-weight:600; }
  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
  label { display:flex; flex-direction:column; gap:4px; color:var(--muted); font-size:13px; }
- input, select { font:inherit; padding:6px 8px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); }
+ input, select { font:inherit; padding:6px 8px; border-radius:6px; border:1px solid var(--line); background:var(--bg); color:var(--text); width:100%; min-width:0; }
+ .row > label, .panel { min-width:0; }
  .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
  .summary { font-size:13px; color:var(--muted); white-space:pre-line; border-top:1px solid var(--line); padding-top:10px; }
  .warn { color:var(--accent); }
