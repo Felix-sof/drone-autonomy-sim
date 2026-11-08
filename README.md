@@ -40,6 +40,7 @@ Real-drone guide: [docs/GERCEK_DRONE.md](docs/GERCEK_DRONE.md) · design decisio
 | Same detector trained on **sim + real data** | cars mAP50 **0.89** on real images, 0.88 in sim |
 | Person detection after adding 5 biomes, 32 posed people and real SAR data (HERIDAL) | sim **0.19 → 0.56**, HERIDAL **0.26 → 0.68**, VisDrone 0.59 → 0.62 |
 | **Wind:** 5–6 m/s from three directions, drop onto the roof from 25 m with drag + wind physics; the drone measures the wind **from its own tilt** (36-direction look-up calibration) | **9/9 roof hits**, 3–90 cm from the centre; without compensation 0/3 (6–8 m off) |
+| **Wind at 50 m / 75 m:** 5–6 m/s, the drone offsets its release point 19–30 m upwind | **10/10 roof hits**, every package on a different car, 0.03–1.2 m from the roof centre |
 | Negative test: 40 % of drop-zone markers removed | **0** deliveries to unmarked cars |
 | Simulator-free tests (fake vehicle, closed loop) | **56** tests, ~2 s |
 

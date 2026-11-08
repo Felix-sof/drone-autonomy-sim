@@ -44,7 +44,7 @@ Kararlar kronolojik sırada. Yeni karar verildikçe sona eklenir; geçersiz olan
 | K-24 | YOLO'yu ısıtmak + FP16 | Unreal ile GPU paylaşımında kilitlenme bitti |
 | K-25 | İrtifaya göre tam kaplayan tarama | 50 m ve 75 m'den tavana 3/3 |
 | K-26 | Rüzgar tahmini için tablo kalibrasyonu | Çapraz rüzgarda 0/3 → 3/3; rüzgarda 9/9 |
-| K-27 | Rüzgarlı yüksek irtifa: hedefi dünya konumunda takip; ısı/kare hızı uyarısı | 30 m kaydırmada yanlış arabaya kilitlenme bitti |
+| K-27 | Rüzgarlı yüksek irtifa: hedefi dünya konumunda takip; ısı/kare hızı uyarısı | 50–75 m, 5–6 m/s rüzgarda 10/10 tavana, hepsi farklı araç |
 
 ---
 
@@ -505,6 +505,20 @@ orantılı. Testle yeniden üretilip doğrulandı.
 3.5 saattir açıktı, GPU 87 °C'de ısıdan kısıyordu (`SW Thermal Slowdown`), Unreal 42 → 2–8 kare/s'ye düşüyordu. AirSim'in
 kontrolcüsü kare hızına duyarlı: drone rüzgara farklı eğiliyor, serin sistemde yapılan kalibrasyon tablosu geçersizleşiyor.
 
+**Üçüncü tur (2026-11-07/08, düzeltmelerle, soğuk GPU; görevler arası simülatör kapatılıp 65 °C'ye soğutuldu):**
+
+| İrtifa | Rüzgar | Eğimden tahmin | Tavana isabet | Farklı araba | Merkeze |
+|---|---|---|---|---|---|
+| 50 m | güneydoğu 5.7 m/s | (+3.9…4.0, −4.0) | 3/3 | 3 | 0.12 / 0.19 / 0.03 m |
+| 50 m | doğu 5 m/s | (+0.1…0.2, +5.0) | 3/3 | 3 | 0.48 / 0.46 / 0.60 m |
+| 75 m | kuzeybatı 5 m/s | (−3.0, +4.0) | 1/1 | 1 | 1.21 m |
+| 75 m | doğu 5 m/s | (+0.1…0.2, +5.0) | 3/3 | 3 | 0.91 / 0.62 / 0.66 m |
+
+**10/10 tavana isabet, her paket farklı araca.** 75 m kuzeybatı görevi iki denemede de 1 paket bıraktı: 75 m'de tek
+şeritte diğer arabalar arama eşiğinin (güven 0.5) altında kaldı — tespit sınırı (açık konu).
+*Not:* 7 Kasım 00:05'te kullanıcı durdurmak istedi; soğuma beklemesindeki test betiği durdurulamadı ve ~30 dk daha
+çalıştı (sonuçlar `autonomy_airsim_20261107_001059/002326`: 5/6 isabet). Bu sonuçlar tabloya katılmadı.
+
 **Ders / sonraki adım:** Simülasyon ölçümleri kısa oturumlarda ve soğuk GPU'da yapılmalı (sıcaklık ve kare hızı kayda
 alınmalı). Gerçek PX4 sabit hızda çalıştığı için bu bir simülasyon sorunu; ama kalibrasyonun drone/kontrolcüye özgü
 olduğunu da gösteriyor.
@@ -512,6 +526,8 @@ olduğunu da gösteriyor.
 ---
 
 ## Açık konular
+
+- 75 m'de arama tespiti: tek şeritte bazı arabalar güven eşiğinin altında kalıyor (75 m kuzeybatı görevi 1 paket).
 
 - 2026-11-06: Görev başlarken (YOLO ekran kartına yüklenirken) Unreal'de tekrarlayan GPU çökmesi
   (DXGI_ERROR_DEVICE_HUNG, Windows TDR 2 s). Bilgisayar 8 gündür yeniden başlatılmamıştı. Öneri: yeniden

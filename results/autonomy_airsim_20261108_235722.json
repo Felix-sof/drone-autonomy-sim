@@ -1,0 +1,94 @@
+{
+  "backend": "airsim",
+  "ruzgar": "0,5",
+  "model": "C:/UE/drone_runs/carperson3/weights/best.pt",
+  "irtifa_m": 75.0,
+  "birakma_irtifa_m": null,
+  "mod": "roof",
+  "paket_fizigi": "gercekci",
+  "ruzgar_telafi": "egim",
+  "sure_s": 655.3,
+  "inis_hatasi_m": 2.32,
+  "inis_isaretci": true,
+  "iptal": null,
+  "teslimatlar": [
+    {
+      "no": 1,
+      "n": 25.06,
+      "e": -0.29,
+      "guven": 0.63,
+      "isaretci": null,
+      "zaman_s": 104.0,
+      "kamera_hedef_ne_m": [
+        1.056,
+        29.415
+      ],
+      "ruzgar_tahmini_ne": [
+        0.19,
+        4.96
+      ],
+      "telafi_kaydirma_ne_m": [
+        -1.11,
+        -29.45
+      ],
+      "birakma_irtifa_m": 76.31,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2296",
+      "merkeze_m": 0.91,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.91 m)"
+    },
+    {
+      "no": 2,
+      "n": 41.79,
+      "e": 24.4,
+      "guven": 0.6,
+      "isaretci": null,
+      "zaman_s": 325.7,
+      "kamera_hedef_ne_m": [
+        0.585,
+        29.245
+      ],
+      "ruzgar_tahmini_ne": [
+        0.12,
+        4.98
+      ],
+      "telafi_kaydirma_ne_m": [
+        -0.71,
+        -29.59
+      ],
+      "birakma_irtifa_m": 75.59,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2294",
+      "merkeze_m": 0.62,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.62 m)"
+    },
+    {
+      "no": 3,
+      "n": 2.6,
+      "e": -62.25,
+      "guven": 0.63,
+      "isaretci": null,
+      "zaman_s": 555.7,
+      "kamera_hedef_ne_m": [
+        0.857,
+        28.98
+      ],
+      "ruzgar_tahmini_ne": [
+        0.15,
+        4.97
+      ],
+      "telafi_kaydirma_ne_m": [
+        -0.89,
+        -29.42
+      ],
+      "birakma_irtifa_m": 75.87,
+      "isabet": true,
+      "ilk_temas": "hedef",
+      "araba": "StaticMeshActor_2291",
+      "merkeze_m": 0.66,
+      "sonuc_metni": "ARABAYA ÇARPTI ✔ (merkeze 0.66 m)"
+    }
+  ]
+}
